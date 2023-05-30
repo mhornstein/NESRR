@@ -1,14 +1,24 @@
 import spacy
 from collections import Counter
-nlp = spacy.load("en_core_web_lg")
 import os
 import json
 import time
 
+'''
+We load spacy and disable irrelevant component for NER extraction
+reference: https://stackoverflow.com/questions/66613770/how-to-optimize-spacy-pipe-for-ner-only-using-an-existing-model-no-training
+'''
+nlp = spacy.load("en_core_web_lg", disable=["tok2vec", "tagger", "parser", "attribute_ruler", "lemmatizer"])
+
 # INPUT_DIR = '../data/dummy'
 INPUT_DIR = '../data/wikitext-103-raw'
+OUTPUT_FILE = 'entities.json'
+
+K = 1000
+
 '''
 The supported entities types:
+
 GPE: Countries, cities, states
 WORK_OF_ART: Titles of books, songs, etc.
 EVENT: Named hurricanes, battles, wars, sports events, etc.
@@ -17,37 +27,68 @@ ORG: Companies, agencies, institutions, etc.
 NORP: Nationalities or religious or political groups
 PERSON: People, including fictional
 PRODUCT: Objects, vehicles, foods, etc. (not services)
-
-Note: not supported yet might be further looked into
-LAW: Named documents made into laws.
 LOC: Non-GPE locations, mountain ranges, bodies of water
+LAW: Named documents made into laws.
 '''
 ENTITIES_TYPES = {'FAC', 'EVENT', 'PERSON', 'ORG', 'NORP', 'PRODUCT', 'GPE', 'WORK_OF_ART', 'LAW', 'LOC'}
 
-def get_entities(dir, k):
-    entities_counter = Counter()
+def load_texts(dir):
+    texts = []
     for file in os.listdir(dir):
-        print(f'Analyzing file: {file}')
+        print(f'Loading file: {file}')
         file_path = os.path.join(dir, file)
         f = open(file_path, "r", encoding="utf8")
         for line in f:
             if line == ' \n' or line.startswith(' = '):
                 continue
             else:
-                doc = nlp(line)
-                entities = [ent for ent in doc.ents if ent.label_ in ENTITIES_TYPES]
-                entities_counter.update(entities)
+                texts.append(line)
         f.close()
-    return {key for key, count in entities_counter.items() if count >= k}
+    return texts
 
-start_time = time.time()
+def count_entities_in_texts(texts):
+    entities_counter = Counter()
+    for doc in nlp.pipe(texts):
+        entities = doc.ents
+        for entity in entities:
+            if entity.label_ in ENTITIES_TYPES:
+                entities_counter[entity.text] += 1
+    return entities_counter
 
-entities = get_entities(INPUT_DIR, k=1000)
-print(f'10 entities samples: {entities[0:10]}')
-print(f'entities found: {len(entities)}')
-with open("entities.json", "w") as outfile:
-    outfile.write(entities)
+if __name__ == '__main__':
+    '''
+    Step 1: load all the texts. 
+    Reason: We process all the texts *together* due to the fact that when you create a spacy doc, 
+    it requires getting and then releasing a number of resources that by default are not re-used between calls.
+    Therefore, calling doc once for all texts might speed up the processing.
+    Reference: https://github.com/explosion/spaCy/discussions/8402
+    '''
+    start_time = time.time()
 
-end_time = time.time()
-execution_time = end_time - start_time
-print(f"Execution time: {execution_time} seconds")
+    texts = load_texts(INPUT_DIR)
+    print(f'Total lines extracted: {len(texts)}')
+
+    print(f"Loading files time: {time.time() - start_time} seconds")
+
+    '''
+    Step 2: extract and count entities
+    '''
+    start_time = time.time()
+
+    entities_count = count_entities_in_texts(texts)
+    print(f'Total entities found: {len(entities_count)}')
+
+    print(f"Entities extraction and count time: {time.time() - start_time} seconds")
+
+    '''
+    Step 3: remove entities that appear less than K
+    '''
+    start_time = time.time()
+
+    filtered_entities = {key for key, count in entities_count.items() if count >= K}
+    print(f'entities >= {K} found: {len(filtered_entities)}')
+
+    with open(OUTPUT_FILE, 'w') as json_file:
+        json.dump(list(filtered_entities), json_file)
+
+    print(f"Claculating top K time: {time.time() - start_time} seconds")
