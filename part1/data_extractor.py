@@ -1,7 +1,7 @@
 import spacy
 from collections import Counter
 import os
-import json
+import csv
 import time
 
 '''
@@ -12,7 +12,7 @@ nlp = spacy.load("en_core_web_lg", disable=["tok2vec", "tagger", "parser", "attr
 
 # INPUT_DIR = '../data/dummy'
 INPUT_DIR = '../data/wikitext-103-raw'
-OUTPUT_FILE = 'entities.json'
+OUTPUT_FILE = 'entities.csv'
 
 K = 1000
 
@@ -46,7 +46,8 @@ def load_texts(dir):
 
 def count_entities_in_texts(texts):
     entities_counter = Counter()
-    for i, doc in enumerate(nlp.pipe(texts)):
+    # Use 4 processes for optimal running time. Reference: https://spacy.io/usage/processing-pipelines
+    for i, doc in enumerate(nlp.pipe(texts, n_process=4)):
         print(f'{i}: {doc}', end='')
         entities = doc.ents
         for entity in entities:
@@ -84,10 +85,13 @@ if __name__ == '__main__':
     '''
     start_time = time.time()
 
-    filtered_entities = {key for key, count in entities_count.items() if count >= K}
-    print(f'entities >= {K} found: {len(filtered_entities)}')
+    filtered_entities_count = Counter({key: value for key, value in entities_count.items() if value >= K})
+    print(f'entities >= {K} found: {len(filtered_entities_count)}')
 
-    with open(OUTPUT_FILE, 'w') as json_file:
-        json.dump(list(filtered_entities), json_file)
+    with open(OUTPUT_FILE, 'w', newline='', encoding='utf8') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(['noun', 'count'])
+        for key, value in filtered_entities_count.items():
+            writer.writerow([key, value])
 
     print(f"Calculating top K time: {time.time() - start_time} seconds")
