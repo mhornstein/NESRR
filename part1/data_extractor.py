@@ -39,16 +39,15 @@ def load_texts(dir):
         file_path = os.path.join(dir, file)
         f = open(file_path, "r", encoding="utf8")
         for line in f:
-            if line == ' \n' or line.startswith(' = '):
-                continue
-            else:
+            if line != ' \n' and not line.startswith(' = '):
                 texts.append(line)
         f.close()
     return texts
 
 def count_entities_in_texts(texts):
     entities_counter = Counter()
-    for doc in nlp.pipe(texts):
+    for i, doc in enumerate(nlp.pipe(texts)):
+        print(f'{i}: {doc}', end='')
         entities = doc.ents
         for entity in entities:
             if entity.label_ in ENTITIES_TYPES:
@@ -91,4 +90,4 @@ if __name__ == '__main__':
     with open(OUTPUT_FILE, 'w') as json_file:
         json.dump(list(filtered_entities), json_file)
 
-    print(f"Claculating top K time: {time.time() - start_time} seconds")
+    print(f"Calculating top K time: {time.time() - start_time} seconds")
