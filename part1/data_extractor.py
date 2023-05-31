@@ -88,7 +88,7 @@ def extract_text_data(texts):
             sentences_data[i] = SentenceData(id=i, txt=str(doc), entities=filtered_entities)
     return sentences_data, entities_counter
 
-def count_pairs_data(sentences_data):
+def extract_pairs_and_labels_stats(sentences_data):
     labels_count = Counter()
     pairs_labels_count = Counter()
     pairs_count = Counter()
@@ -106,38 +106,40 @@ def count_pairs_data(sentences_data):
 
     return labels_count, pairs_labels_count, pairs_count
 
-def log_count(count, output_file):
-    with open(output_file, 'w', encoding='utf8') as file:
-        file.write(f'entry,count\n')
-        sorted_entities = count.most_common() # sort by occurances for better browsing of csv
-        for key, value in sorted_entities:
-            file.write(f'{key},{value}\n')
-
-def plot_pairs_labels_heatmap(counter, output_file):
-    data = pd.DataFrame(counter.items(), columns=['labels', 'count'])
-    data[['label1', 'label2']] = pd.DataFrame(data['labels'].tolist())
-    data = data.drop('labels', axis=1)
-    heatmap_data = data.pivot(index='label1', columns='label2', values='count')
-
+def plot_heatmap(df, output_file, title):
     plt.figure(figsize=(8, 6))
-    sns.heatmap(heatmap_data, annot=True, fmt='g')
-    plt.title('labels pairs co-occurances')
+    columns = df.columns
+    data = df.pivot(index=columns[0], columns=columns[1], values=columns[2])
+    data = data.fillna(0) # Replace NaN values with 0
+    sns.heatmap(data, annot=True, fmt='g')
+    plt.title(title)
     plt.subplots_adjust(left=0.15, bottom=0.19) # Adjust the margins
     plt.savefig(output_file)
     plt.clf()
     plt.close()
 
-def plot_labels_barchart(counter, output_file):
-    data = pd.DataFrame.from_dict(counter, orient='index', columns=['count']).reset_index()
-    data.columns = ['label', 'count']
-    ax = sns.barplot(x='label', y='count', data=data)
+def plot_barchart(df, output_file, title):
+    ax = sns.barplot(x=df.columns[0], y=df.columns[1], data=df)
     for p in ax.patches:
         ax.annotate(f'{int(p.get_height())}', (p.get_x() + p.get_width() / 2, p.get_height()), ha='center', va='bottom')
-    plt.title("Labels occurances")
+    plt.title(title)
     plt.savefig(output_file)
     plt.clf()
     plt.close()
 
+def pair_count_to_df(counter, columns):
+    df = pd.DataFrame(counter.items(), columns = ['tmp'] + [columns[-1]])
+    df[columns[0:-1]] = pd.DataFrame(df['tmp'].tolist())
+    df = df.drop('tmp', axis=1)
+    df = df[columns] # reorder columns
+    df.sort_values(by=columns[-1], inplace=True, ascending=False)  # sort in reverse order to ease browsing
+    return df
+
+def count_to_df(counter, columns):
+    df = pd.DataFrame.from_dict(counter, orient='index', columns=[columns[-1]]).reset_index()
+    df.columns = columns
+    df.sort_values(by=columns[-1], inplace=True, ascending=False) # sort in reverse order to ease browsing
+    return df
 
 if __name__ == '__main__':
     '''
@@ -171,7 +173,6 @@ if __name__ == '__main__':
 
     filtered_entities_count = Counter({key: value for key, value in entities_count.items() if value >= K})
     print(f'entities >= {K} found: {len(filtered_entities_count)}')
-    log_count(filtered_entities_count, ENTITY_COUNT_CSV_FILE)
 
     print(f"Calculating top K time: {time.time() - start_time} seconds")
 
@@ -189,13 +190,25 @@ if __name__ == '__main__':
     '''
     Step 5: count the pairs + labels statistics 
     '''
-    labels_count, pairs_labels_count, pairs_count = count_pairs_data(sentences_data)
-    log_count(labels_count, LABELS_COUNT_CSV_FILE)
-    log_count(pairs_labels_count, PAIRS_LABELS_COUNT_CSV_FILE)
-    log_count(pairs_count, PAIRS_COUNT_CSV_FILE)
+    labels_count, pairs_labels_count, pairs_count = extract_pairs_and_labels_stats(sentences_data)
 
     '''
-    Step 6: output heatmaps and bar charts
+    Step 6: output csv files, heatmaps and bar charts
     '''
-    plot_pairs_labels_heatmap(pairs_labels_count, PAIRS_LABELS_COUNT_HEATMAP_FILE)
-    plot_labels_barchart(labels_count, LABELS_COUNT_BARCHART_FILE)
+    # entities
+    entities_df = count_to_df(filtered_entities_count, ['entity', 'count'])
+    entities_df.to_csv(ENTITY_COUNT_CSV_FILE, index=False)
+
+    # entities pairs
+    pairs_df = pair_count_to_df(pairs_count, ['ent1', 'ent2', 'count'])
+    pairs_df.to_csv(PAIRS_COUNT_CSV_FILE, index=False)
+
+    # labels
+    labels_df = count_to_df(labels_count, ['label', 'count'])
+    labels_df.to_csv(LABELS_COUNT_CSV_FILE, index=False)
+    plot_barchart(labels_df, LABELS_COUNT_BARCHART_FILE, "Labels count")
+
+    # labels pairs
+    pairs_labels_df = pair_count_to_df(pairs_labels_count, ['label1', 'label2', 'count'])
+    pairs_labels_df.to_csv(PAIRS_LABELS_COUNT_CSV_FILE, index=False)
+    plot_heatmap(pairs_labels_df, PAIRS_LABELS_COUNT_HEATMAP_FILE, 'labels pairs co-occurances')
