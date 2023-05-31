@@ -14,6 +14,7 @@ if DEBUG:
     ENTITY_COUNT_OUTPUT_FILE = 'dummy_entities_count.csv'
     PAIRS_COUNT_OUTPUT_FILE = 'dummy_pairs_count.csv'
     LABELS_COUNT_OUTPUT_FILE = 'dummy_labels_count.csv'
+    LABELS_COUNT_BARCHART_FILE = 'dummy_labels_count.png'
     PAIRS_LABELS_COUNT_OUTPUT_FILE = 'dummy_pairs_labels_count.csv'
     PAIRS_LABELS_COUNT_HEATMAP_FILE = 'dummy_pairs_labels_count.png'
     K = 3
@@ -23,6 +24,7 @@ else:
     ENTITY_COUNT_OUTPUT_FILE = 'entities_count.csv'
     PAIRS_COUNT_OUTPUT_FILE = 'pairs_count.csv'
     LABELS_COUNT_OUTPUT_FILE = 'labels_count.csv'
+    LABELS_COUNT_BARCHART_FILE = 'labels_count.png'
     PAIRS_LABELS_COUNT_OUTPUT_FILE = 'pairs_labels_count.csv'
     PAIRS_LABELS_COUNT_HEATMAP_FILE = 'pairs_labels_count.png'
     K = 1000
@@ -125,6 +127,18 @@ def plot_pairs_labels_heatmap(counter, output_file):
     plt.clf()
     plt.close()
 
+def plot_labels_barchart(counter, output_file):
+    data = pd.DataFrame.from_dict(counter, orient='index', columns=['count']).reset_index()
+    data.columns = ['label', 'count']
+    ax = sns.barplot(x='label', y='count', data=data)
+    for p in ax.patches:
+        ax.annotate(f'{int(p.get_height())}', (p.get_x() + p.get_width() / 2, p.get_height()), ha='center', va='bottom')
+    plt.title("Labels occurances")
+    plt.savefig(output_file)
+    plt.clf()
+    plt.close()
+
+
 if __name__ == '__main__':
     '''
     Step 1: load all the texts. 
@@ -184,3 +198,4 @@ if __name__ == '__main__':
     Step 6: output heatmaps and bar charts
     '''
     plot_pairs_labels_heatmap(pairs_labels_count, PAIRS_LABELS_COUNT_HEATMAP_FILE)
+    plot_labels_barchart(labels_count, LABELS_COUNT_BARCHART_FILE)
