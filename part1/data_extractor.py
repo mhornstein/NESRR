@@ -19,6 +19,7 @@ if DEBUG:
     PAIRS_LABELS_COUNT_HEATMAP_FILE = 'dummy_pairs_labels_count.png'
     K = 3
     N_PROCESS = 1
+    SENTENCES_BATCH = 10
 else:
     INPUT_DIR = '../data/wikitext-103-raw'
     ENTITY_COUNT_CSV_FILE = 'entities_count.csv'
@@ -29,6 +30,7 @@ else:
     PAIRS_LABELS_COUNT_HEATMAP_FILE = 'pairs_labels_count.png'
     K = 1000
     N_PROCESS = 4
+    SENTENCES_BATCH = 100
 
 class SentenceData:
     def __init__(self, id, txt, entities):
@@ -78,8 +80,10 @@ def extract_text_data(texts):
     sentences_data = {}
     entities_counter = Counter()
 
-    for i, doc in enumerate(nlp.pipe(texts, n_process=N_PROCESS)): # Use N_PROCESS for optimal running time. Reference: https://spacy.io/usage/processing-pipelines
-        print(f'{i}: {doc}', end='')
+    for i, doc in enumerate(nlp.pipe(texts, n_process=N_PROCESS), start=1): # Use N_PROCESS for optimal running time. Reference: https://spacy.io/usage/processing-pipelines
+        # print(f'{i}: {doc}', end='')
+        if i % SENTENCES_BATCH == 0:
+            print(f'total sentences processed: {i}/{len(texts)} = {i/len(texts) :.2%}')
         entities = doc.ents
         filtered_entities = {(entity.text, entity.label_) for entity in entities if entity.label_ in ENTITIES_TYPES}
         if len(filtered_entities) >= 2: # Keep only sentences with at least one candidate pairs
