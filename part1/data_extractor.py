@@ -3,17 +3,24 @@ from collections import Counter
 import os
 import csv
 import time
+from itertools import combinations
 
 DEBUG = True
 
 if DEBUG:
     INPUT_DIR = '../data/dummy'
-    OUTPUT_FILE = 'dummy_entities.csv'
+    ENTITY_COUNT_OUTPUT_FILE = 'dummy_entities_count.csv'
+    PAIRS_COUNT_OUTPUT_FILE = 'dummy_pairs_count.csv'
+    LABELS_COUNT_OUTPUT_FILE = 'dummy_labels_count.csv'
+    PAIRS_LABELS_COUNT_OUTPUT_FILE = 'dummy_pairs_labels_count.csv'
     K = 3
     N_PROCESS = 1
 else:
     INPUT_DIR = '../data/wikitext-103-raw'
-    OUTPUT_FILE = 'entities.csv'
+    ENTITY_COUNT_OUTPUT_FILE = 'entities_count.csv'
+    PAIRS_COUNT_OUTPUT_FILE = 'pairs_count.csv'
+    LABELS_COUNT_OUTPUT_FILE = 'labels_count.csv'
+    PAIRS_LABELS_COUNT_OUTPUT_FILE = 'pairs_labels_count.csv'
     K = 1000
     N_PROCESS = 4
 
@@ -69,11 +76,29 @@ def extract_text_data(texts):
         print(f'{i}: {doc}', end='')
         entities = doc.ents
         filtered_entities = {(entity.text, entity.label_) for entity in entities if entity.label_ in ENTITIES_TYPES}
-        if len(filtered_entities) >= 2: # Keep only sentences with at least one candidate couple
+        if len(filtered_entities) >= 2: # Keep only sentences with at least one candidate pairs
             for ent_text, ent_label in filtered_entities:
                 entities_counter[ent_text] += 1
             sentences_data[i] = SentenceData(id=i, txt=str(doc), entities=filtered_entities)
     return sentences_data, entities_counter
+
+def count_pairs_data(sentences_data):
+    labels_count = Counter()
+    pairs_labels_count = Counter()
+    pairs_count = Counter()
+
+    for sentence_data in sentences_data.values():
+        entities = sorted(sentence_data.entities, key=lambda x: x[0]) # Keep lexicographic order
+        pairs = list(combinations(entities, 2))
+        for ent1, ent2 in pairs:
+            pairs_count[(ent1[0], ent2[0])] += 1
+            pairs_labels_count[(ent1[1], ent2[1])] += 1
+            pairs_labels_count[(ent2[1], ent1[1])] += 1
+
+        for ent in entities:
+            labels_count[ent[1]] += 1
+
+    return labels_count, pairs_labels_count, pairs_count
 
 def log_count(count, output_file):
     with open(output_file, 'w', newline='', encoding='utf8') as csvfile:
@@ -115,23 +140,32 @@ if __name__ == '__main__':
 
     filtered_entities_count = Counter({key: value for key, value in entities_count.items() if value >= K})
     print(f'entities >= {K} found: {len(filtered_entities_count)}')
-    log_count(filtered_entities_count, OUTPUT_FILE)
+    log_count(filtered_entities_count, ENTITY_COUNT_OUTPUT_FILE)
 
     print(f"Calculating top K time: {time.time() - start_time} seconds")
 
     '''
-    Step 4: filter out entities with too few occurances. keep only the sentences that has at least one couple of entities
+    Step 4: filter out entities with too few occurances. keep only the sentences that has at least one pair of entities
     '''
     start_time = time.time()
     filtered_entities_set = set(filtered_entities_count.keys())
     for sentence_data in sentences_data.values():
         sentence_data.filter_entities(filtered_entities_set)
     sentences_data = { i: s_data for i, s_data in sentences_data.items() if len(s_data.entities) >= 2 }
+    print(f'Total relevant sentences: {len(sentences_data)}')
     print(f"Removing irrelevant entities from sentences data time: {time.time() - start_time} seconds")
 
     '''
     Step 5: 
     '''
-    pass
+    labels_count, pairs_labels_count, pairs_count = count_pairs_data(sentences_data)
+    log_count(labels_count, LABELS_COUNT_OUTPUT_FILE)
+    log_count(pairs_labels_count, PAIRS_LABELS_COUNT_OUTPUT_FILE)
+    log_count(pairs_count, PAIRS_COUNT_OUTPUT_FILE)
+
+
+
+
+
 
 
