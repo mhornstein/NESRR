@@ -101,12 +101,11 @@ def count_pairs_data(sentences_data):
     return labels_count, pairs_labels_count, pairs_count
 
 def log_count(count, output_file):
-    with open(output_file, 'w', newline='', encoding='utf8') as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow(['entry', 'count'])
+    with open(output_file, 'w', encoding='utf8') as file:
+        file.write(f'entry,count\n')
         sorted_entities = count.most_common() # sort by occurances for better browsing of csv
         for key, value in sorted_entities:
-            writer.writerow([key, value])
+            file.write(f'{key},{value}\n')
 
 if __name__ == '__main__':
     '''
@@ -156,16 +155,9 @@ if __name__ == '__main__':
     print(f"Removing irrelevant entities from sentences data time: {time.time() - start_time} seconds")
 
     '''
-    Step 5: 
+    Step 5: count the pairs + labels statistics 
     '''
     labels_count, pairs_labels_count, pairs_count = count_pairs_data(sentences_data)
     log_count(labels_count, LABELS_COUNT_OUTPUT_FILE)
     log_count(pairs_labels_count, PAIRS_LABELS_COUNT_OUTPUT_FILE)
     log_count(pairs_count, PAIRS_COUNT_OUTPUT_FILE)
-
-
-
-
-
-
-
