@@ -11,21 +11,21 @@ DEBUG = True
 
 if DEBUG:
     INPUT_DIR = '../data/dummy'
-    ENTITY_COUNT_OUTPUT_FILE = 'dummy_entities_count.csv'
-    PAIRS_COUNT_OUTPUT_FILE = 'dummy_pairs_count.csv'
-    LABELS_COUNT_OUTPUT_FILE = 'dummy_labels_count.csv'
+    ENTITY_COUNT_CSV_FILE = 'dummy_entities_count.csv'
+    PAIRS_COUNT_CSV_FILE = 'dummy_pairs_count.csv'
+    LABELS_COUNT_CSV_FILE = 'dummy_labels_count.csv'
     LABELS_COUNT_BARCHART_FILE = 'dummy_labels_count.png'
-    PAIRS_LABELS_COUNT_OUTPUT_FILE = 'dummy_pairs_labels_count.csv'
+    PAIRS_LABELS_COUNT_CSV_FILE = 'dummy_pairs_labels_count.csv'
     PAIRS_LABELS_COUNT_HEATMAP_FILE = 'dummy_pairs_labels_count.png'
     K = 3
     N_PROCESS = 1
 else:
     INPUT_DIR = '../data/wikitext-103-raw'
-    ENTITY_COUNT_OUTPUT_FILE = 'entities_count.csv'
-    PAIRS_COUNT_OUTPUT_FILE = 'pairs_count.csv'
-    LABELS_COUNT_OUTPUT_FILE = 'labels_count.csv'
+    ENTITY_COUNT_CSV_FILE = 'entities_count.csv'
+    PAIRS_COUNT_CSV_FILE = 'pairs_count.csv'
+    LABELS_COUNT_CSV_FILE = 'labels_count.csv'
     LABELS_COUNT_BARCHART_FILE = 'labels_count.png'
-    PAIRS_LABELS_COUNT_OUTPUT_FILE = 'pairs_labels_count.csv'
+    PAIRS_LABELS_COUNT_CSV_FILE = 'pairs_labels_count.csv'
     PAIRS_LABELS_COUNT_HEATMAP_FILE = 'pairs_labels_count.png'
     K = 1000
     N_PROCESS = 4
@@ -171,7 +171,7 @@ if __name__ == '__main__':
 
     filtered_entities_count = Counter({key: value for key, value in entities_count.items() if value >= K})
     print(f'entities >= {K} found: {len(filtered_entities_count)}')
-    log_count(filtered_entities_count, ENTITY_COUNT_OUTPUT_FILE)
+    log_count(filtered_entities_count, ENTITY_COUNT_CSV_FILE)
 
     print(f"Calculating top K time: {time.time() - start_time} seconds")
 
@@ -190,9 +190,9 @@ if __name__ == '__main__':
     Step 5: count the pairs + labels statistics 
     '''
     labels_count, pairs_labels_count, pairs_count = count_pairs_data(sentences_data)
-    log_count(labels_count, LABELS_COUNT_OUTPUT_FILE)
-    log_count(pairs_labels_count, PAIRS_LABELS_COUNT_OUTPUT_FILE)
-    log_count(pairs_count, PAIRS_COUNT_OUTPUT_FILE)
+    log_count(labels_count, LABELS_COUNT_CSV_FILE)
+    log_count(pairs_labels_count, PAIRS_LABELS_COUNT_CSV_FILE)
+    log_count(pairs_count, PAIRS_COUNT_CSV_FILE)
 
     '''
     Step 6: output heatmaps and bar charts
