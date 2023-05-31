@@ -1,9 +1,11 @@
 import spacy
 from collections import Counter
 import os
-import csv
 import time
 from itertools import combinations
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 DEBUG = True
 
@@ -13,6 +15,7 @@ if DEBUG:
     PAIRS_COUNT_OUTPUT_FILE = 'dummy_pairs_count.csv'
     LABELS_COUNT_OUTPUT_FILE = 'dummy_labels_count.csv'
     PAIRS_LABELS_COUNT_OUTPUT_FILE = 'dummy_pairs_labels_count.csv'
+    PAIRS_LABELS_COUNT_HEATMAP_FILE = 'dummy_pairs_labels_count.png'
     K = 3
     N_PROCESS = 1
 else:
@@ -21,6 +24,7 @@ else:
     PAIRS_COUNT_OUTPUT_FILE = 'pairs_count.csv'
     LABELS_COUNT_OUTPUT_FILE = 'labels_count.csv'
     PAIRS_LABELS_COUNT_OUTPUT_FILE = 'pairs_labels_count.csv'
+    PAIRS_LABELS_COUNT_HEATMAP_FILE = 'pairs_labels_count.png'
     K = 1000
     N_PROCESS = 4
 
@@ -107,6 +111,20 @@ def log_count(count, output_file):
         for key, value in sorted_entities:
             file.write(f'{key},{value}\n')
 
+def plot_pairs_labels_heatmap(counter, output_file):
+    data = pd.DataFrame(counter.items(), columns=['labels', 'count'])
+    data[['label1', 'label2']] = pd.DataFrame(data['labels'].tolist())
+    data = data.drop('labels', axis=1)
+    heatmap_data = data.pivot(index='label1', columns='label2', values='count')
+
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(heatmap_data, annot=True, fmt='g')
+    plt.title('labels pairs co-occurances')
+    plt.subplots_adjust(left=0.15, bottom=0.19) # Adjust the margins
+    plt.savefig(output_file)
+    plt.clf()
+    plt.close()
+
 if __name__ == '__main__':
     '''
     Step 1: load all the texts. 
@@ -161,3 +179,8 @@ if __name__ == '__main__':
     log_count(labels_count, LABELS_COUNT_OUTPUT_FILE)
     log_count(pairs_labels_count, PAIRS_LABELS_COUNT_OUTPUT_FILE)
     log_count(pairs_count, PAIRS_COUNT_OUTPUT_FILE)
+
+    '''
+    Step 6: output heatmaps and bar charts
+    '''
+    plot_pairs_labels_heatmap(pairs_labels_count, PAIRS_LABELS_COUNT_HEATMAP_FILE)
