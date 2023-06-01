@@ -186,7 +186,8 @@ if __name__ == '__main__':
     print(f"Calculating top K time: {time.time() - start_time} seconds")
 
     '''
-    Step 4: filter out entities with too few occurances. keep only the sentences that has at least one pair of entities
+    Step 4: filter out entities with too few occurances from the sentences.
+    keep only the sentences that has at least one pair of entities left after the filtering.
     '''
     start_time = time.time()
     filtered_entities_set = set(filtered_entities_count.keys())
