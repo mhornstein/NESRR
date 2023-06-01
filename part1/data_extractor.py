@@ -8,30 +8,33 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from itertools import count
 
-DEBUG = True
+DEBUG = False
+
+output_dir = 'wikitext'
+
+if DEBUG:
+    output_dir = output_dir + '_debug'
+
+if not os.path.exists(f'./{output_dir}'):
+    os.makedirs(f'{output_dir}')
 
 if DEBUG:
     INPUT_DIR = '../data/dummy'
-    ENTITY_COUNT_CSV_FILE = 'dummy_entities_count.csv'
-    PAIRS_COUNT_CSV_FILE = 'dummy_pairs_count.csv'
-    LABELS_COUNT_CSV_FILE = 'dummy_labels_count.csv'
-    LABELS_COUNT_BARCHART_FILE = 'dummy_labels_count.png'
-    PAIRS_LABELS_COUNT_CSV_FILE = 'dummy_pairs_labels_count.csv'
-    PAIRS_LABELS_COUNT_HEATMAP_FILE = 'dummy_pairs_labels_count.png'
     K = 3
-    N_PROCESS = 1
+    N_PROCESS = 2
     TEXT_BATCH_SIZE = 10
 else:
     INPUT_DIR = '../data/wikitext-103-raw'
-    ENTITY_COUNT_CSV_FILE = 'entities_count.csv'
-    PAIRS_COUNT_CSV_FILE = 'pairs_count.csv'
-    LABELS_COUNT_CSV_FILE = 'labels_count.csv'
-    LABELS_COUNT_BARCHART_FILE = 'labels_count.png'
-    PAIRS_LABELS_COUNT_CSV_FILE = 'pairs_labels_count.csv'
-    PAIRS_LABELS_COUNT_HEATMAP_FILE = 'pairs_labels_count.png'
     K = 1000
     N_PROCESS = 4
     TEXT_BATCH_SIZE = 100
+
+ENTITY_COUNT_CSV_FILE = f'{output_dir}\\entities_count.csv'
+PAIRS_COUNT_CSV_FILE = f'{output_dir}\\pairs_count.csv'
+LABELS_COUNT_CSV_FILE = f'{output_dir}\\labels_count.csv'
+LABELS_COUNT_BARCHART_FILE = f'{output_dir}\\labels_count.png'
+PAIRS_LABELS_COUNT_CSV_FILE = f'{output_dir}\\pairs_labels_count.csv'
+PAIRS_LABELS_COUNT_HEATMAP_FILE = f'{output_dir}\\pairs_labels_count.png'
 
 class SentenceData:
     def __init__(self, id, txt, entities):
@@ -131,6 +134,7 @@ def plot_barchart(df, output_file, title):
     ax = sns.barplot(x=df.columns[0], y=df.columns[1], data=df)
     for p in ax.patches:
         ax.annotate(f'{int(p.get_height())}', (p.get_x() + p.get_width() / 2, p.get_height()), ha='center', va='bottom')
+    ax.tick_params(axis='x', labelsize=6)
     plt.title(title)
     plt.savefig(output_file)
     plt.clf()
