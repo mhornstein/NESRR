@@ -2,11 +2,13 @@ import spacy
 from collections import Counter
 import os
 import time
-from itertools import combinations
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 from itertools import count
+import random
+
+random.seed(42)
 
 DEBUG = False
 
@@ -21,13 +23,15 @@ if not os.path.exists(f'./{output_dir}'):
 if DEBUG:
     INPUT_DIR = '../data/dummy'
     K = 3
-    N_PROCESS = 2
+    N_PROCESS = 1
     TEXT_BATCH_SIZE = 10
+    N = 15
 else:
     INPUT_DIR = '../data/wikitext-103-raw'
     K = 1000
     N_PROCESS = 4
     TEXT_BATCH_SIZE = 100
+    N = 10000
 
 ENTITY_COUNT_CSV_FILE = f'{output_dir}\\entities_count.csv'
 PAIRS_COUNT_CSV_FILE = f'{output_dir}\\pairs_count.csv'
@@ -101,22 +105,26 @@ def extract_text_data(texts):
     return sentences_data, entities_counter
 
 def extract_pairs_and_labels_stats(sentences_data):
+    entities_count = Counter()
     labels_count = Counter()
-    pairs_labels_count = Counter()
     pairs_count = Counter()
+    pairs_labels_count = Counter()
 
     for sentence_data in sentences_data.values():
-        entities = sorted(sentence_data.entities, key=lambda x: x[0]) # Keep lexicographic order
-        pairs = list(combinations(entities, 2))
-        for ent1, ent2 in pairs:
-            pairs_count[(ent1[0], ent2[0])] += 1
-            pairs_labels_count[(ent1[1], ent2[1])] += 1
-            pairs_labels_count[(ent2[1], ent1[1])] += 1
+        ent0 = sentence_data.entities[0]
+        ent1 = sentence_data.entities[1]
 
-        for ent in entities:
-            labels_count[ent[1]] += 1
+        entities_count[ent0[0]] += 1
+        entities_count[ent1[0]] += 1
 
-    return labels_count, pairs_labels_count, pairs_count
+        labels_count[ent0[1]] += 1
+        labels_count[ent1[1]] += 1
+
+        pairs_count[(ent0[0], ent1[0])] += 1
+        pairs_labels_count[(ent0[1], ent1[1])] += 1
+        pairs_labels_count[(ent1[1], ent0[1])] += 1
+
+    return entities_count, labels_count, pairs_count, pairs_labels_count
 
 def plot_heatmap(df, output_file, title):
     plt.figure(figsize=(8, 6))
@@ -154,6 +162,19 @@ def count_to_df(counter, columns):
     df.sort_values(by=columns[-1], inplace=True, ascending=False) # sort in reverse order to ease browsing
     return df
 
+def sample_sentences(sentences_data, n):
+    ids = list(sentences_data.keys())
+    random.shuffle(ids)
+    sampled_ids = ids[:n]
+    return {i: sentences_data[i] for i in sampled_ids}
+
+def sample_and_sort_entities_in_sentences(sentences_data):
+    for sentence_data in sentences_data.values():
+        entities = sentence_data.entities
+        entities = random.sample(list(entities), 2)
+        entities = sorted(entities, key=lambda x: x[0])  # Keep lexicographic order after sampling
+        sentence_data.entities = entities
+
 if __name__ == '__main__':
     '''
     Step 1: load all the texts. 
@@ -187,7 +208,7 @@ if __name__ == '__main__':
     filtered_entities_count = Counter({key: value for key, value in entities_count.items() if value >= K})
     print(f'entities >= {K} found: {len(filtered_entities_count)}')
 
-    print(f"Calculating top K time: {time.time() - start_time} seconds")
+    print(f"Filter by K time: {time.time() - start_time} seconds")
 
     '''
     Step 4: filter out entities with too few occurances from the sentences.
@@ -202,15 +223,29 @@ if __name__ == '__main__':
     print(f"Removing irrelevant entities from sentences data time: {time.time() - start_time} seconds")
 
     '''
-    Step 5: count the pairs + labels statistics 
+    Step 5: sample N sentences for the dataset. Sample only 2 entities to each sentence
     '''
-    labels_count, pairs_labels_count, pairs_count = extract_pairs_and_labels_stats(sentences_data)
+    start_time = time.time()
+
+    sentences_data = sample_sentences(sentences_data, N)
+    sample_and_sort_entities_in_sentences(sentences_data)
+
+    print(f"Sentences and entities took: {time.time() - start_time} seconds")
 
     '''
-    Step 6: output csv files, heatmaps and bar charts
+    Step 6: count the pairs + labels statistics 
+    '''
+    entities_count, labels_count, pairs_count, pairs_labels_count = extract_pairs_and_labels_stats(sentences_data)
+    assert sum(entities_count.values()) == 2 * N
+    assert sum(labels_count.values()) == 2 * N
+    assert sum(pairs_count.values()) == N
+    assert sum(pairs_labels_count.values()) == 2 * N
+
+    '''
+    Step 7: output csv files, heatmaps and bar charts of the dataset statistics
     '''
     # entities
-    entities_df = count_to_df(filtered_entities_count, ['entity', 'count'])
+    entities_df = count_to_df(entities_count, ['entity', 'count'])
     entities_df.to_csv(ENTITY_COUNT_CSV_FILE, index=False)
 
     # entities pairs
@@ -226,3 +261,8 @@ if __name__ == '__main__':
     pairs_labels_df = pair_count_to_df(pairs_labels_count, ['label1', 'label2', 'count'])
     pairs_labels_df.to_csv(PAIRS_LABELS_COUNT_CSV_FILE, index=False)
     plot_heatmap(pairs_labels_df, PAIRS_LABELS_COUNT_HEATMAP_FILE, 'labels pairs co-occurances')
+
+    '''
+    Step 8: write the dataset
+    '''
+    # TODO
