@@ -8,9 +8,7 @@ import matplotlib.pyplot as plt
 from itertools import count
 import random
 
-random.seed(42)
-
-DEBUG = False
+DEBUG = True
 
 output_dir = 'wikitext'
 
@@ -96,9 +94,9 @@ def extract_text_data(texts):
 
         for sent in doc.sents:
             entities = sent.ents
-            filtered_entities = {(entity.text, entity.label_) for entity in entities if entity.label_ in ENTITIES_TYPES}
+            filtered_entities = {(entity.text, entity.label_, entity.start_char, entity.end_char) for entity in entities if entity.label_ in ENTITIES_TYPES}
             if len(filtered_entities) >= 2: # Keep only sentences with at least one candidate pairs
-                for ent_text, ent_label in filtered_entities:
+                for ent_text, *_ in filtered_entities:
                     entities_counter[ent_text] += 1
                 sent_id = next(id_counter)
                 sentences_data[sent_id] = SentenceData(id=sent_id, txt=str(sent), entities=filtered_entities)
@@ -265,4 +263,4 @@ if __name__ == '__main__':
     '''
     Step 8: write the dataset
     '''
-    # TODO
+    print()
