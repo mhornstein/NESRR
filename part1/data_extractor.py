@@ -9,6 +9,7 @@ from itertools import count
 import random
 import math
 import csv
+from itertools import combinations
 
 DEBUG = True
 
@@ -133,18 +134,16 @@ def extract_pairs_and_labels_stats(sentences_data):
     pairs_labels_count = Counter()
 
     for sentence_data in sentences_data.values():
-        ent0 = sentence_data.entities[0]
-        ent1 = sentence_data.entities[1]
+        entities = sorted(sentence_data.entities, key=lambda x: x[0]) # Keep lexicographic order
+        pairs = list(combinations(entities, 2))
+        for ent1, ent2 in pairs:
+            pairs_count[(ent1[0], ent2[0])] += 1
+            pairs_labels_count[(ent1[1], ent2[1])] += 1
+            pairs_labels_count[(ent2[1], ent1[1])] += 1
 
-        entities_count[ent0[0]] += 1
-        entities_count[ent1[0]] += 1
-
-        labels_count[ent0[1]] += 1
-        labels_count[ent1[1]] += 1
-
-        pairs_count[(ent0[0], ent1[0])] += 1
-        pairs_labels_count[(ent0[1], ent1[1])] += 1
-        pairs_labels_count[(ent1[1], ent0[1])] += 1
+        for ent_txt, ent_label in entities:
+            entities_count[ent_txt] += 1
+            labels_count[ent_label] += 1
 
     return entities_count, labels_count, pairs_count, pairs_labels_count
 
