@@ -13,14 +13,6 @@ from itertools import combinations
 
 DEBUG = True
 
-output_dir = 'wikitext'
-
-if DEBUG:
-    output_dir = output_dir + '_debug'
-
-if not os.path.exists(f'./{output_dir}'):
-    os.makedirs(f'{output_dir}')
-
 if DEBUG:
     INPUT_DIR = '../data/dummy'
     K = 3
@@ -34,13 +26,7 @@ else:
     TEXT_BATCH_SIZE = 100
     N = 10000
 
-ENTITY_COUNT_CSV_FILE = f'{output_dir}\\entities_count.csv'
-PAIRS_COUNT_CSV_FILE = f'{output_dir}\\pairs_count.csv'
-LABELS_COUNT_CSV_FILE = f'{output_dir}\\labels_count.csv'
-LABELS_COUNT_BARCHART_FILE = f'{output_dir}\\labels_count.png'
-PAIRS_LABELS_COUNT_CSV_FILE = f'{output_dir}\\pairs_labels_count.csv'
-PAIRS_LABELS_COUNT_HEATMAP_FILE = f'{output_dir}\\pairs_labels_count.png'
-DATASET_FILE = f'{output_dir}\\data.csv'
+DATASET_FILE = 'data.csv'
 
 MASK_LABEL = '[MASK]'
 
@@ -222,6 +208,29 @@ def write_to_csv(sentences_data, output_file):
         entry = [sent_id, sent, masked_sent, ent1, label1, ent2, label2, mi_score]
         writer.writerow(entry)
 
+
+def plot_stats(entities_count, labels_count, pairs_count, pairs_labels_count, output_dir):
+    if not os.path.exists(f'./{output_dir}'):
+        os.makedirs(f'{output_dir}')
+
+    # entities
+    entities_df = count_to_df(entities_count, ['entity', 'count'])
+    entities_df.to_csv(f'{output_dir}\\entities_count.csv', index=False)
+
+    # entities pairs
+    pairs_df = pair_count_to_df(pairs_count, ['ent1', 'ent2', 'count'])
+    pairs_df.to_csv(f'{output_dir}\\pairs_count.csv', index=False)
+
+    # labels
+    labels_df = count_to_df(labels_count, ['label', 'count'])
+    labels_df.to_csv(f'{output_dir}\\labels_count.csv', index=False)
+    plot_barchart(labels_df, f'{output_dir}\\labels_count.png', "Labels count")
+
+    # labels pairs
+    pairs_labels_df = pair_count_to_df(pairs_labels_count, ['label1', 'label2', 'count'])
+    pairs_labels_df.to_csv(f'{output_dir}\\pairs_labels_count.csv', index=False)
+    plot_heatmap(pairs_labels_df, f'{output_dir}\\pairs_labels_count.png', 'labels pairs co-occurances')
+
 if __name__ == '__main__':
     '''
     Step 1: load all the texts. 
@@ -270,6 +279,12 @@ if __name__ == '__main__':
     print(f"Removing irrelevant entities from sentences data time: {time.time() - start_time} seconds")
 
     '''
+    Step 5: write data stats
+    '''
+    entities_count, labels_count, pairs_count, pairs_labels_count = extract_pairs_and_labels_stats(sentences_data)
+    plot_stats(entities_count, labels_count, pairs_count, pairs_labels_count, output_dir='original_data_stats')
+
+    '''
     Step 5: sample N sentences for the dataset. Sample only 2 entities to each sentence
     '''
     start_time = time.time()
@@ -291,23 +306,7 @@ if __name__ == '__main__':
     '''
     Step 7: output csv files, heatmaps and bar charts of the dataset statistics
     '''
-    # entities
-    entities_df = count_to_df(entities_count, ['entity', 'count'])
-    entities_df.to_csv(ENTITY_COUNT_CSV_FILE, index=False)
-
-    # entities pairs
-    pairs_df = pair_count_to_df(pairs_count, ['ent1', 'ent2', 'count'])
-    pairs_df.to_csv(PAIRS_COUNT_CSV_FILE, index=False)
-
-    # labels
-    labels_df = count_to_df(labels_count, ['label', 'count'])
-    labels_df.to_csv(LABELS_COUNT_CSV_FILE, index=False)
-    plot_barchart(labels_df, LABELS_COUNT_BARCHART_FILE, "Labels count")
-
-    # labels pairs
-    pairs_labels_df = pair_count_to_df(pairs_labels_count, ['label1', 'label2', 'count'])
-    pairs_labels_df.to_csv(PAIRS_LABELS_COUNT_CSV_FILE, index=False)
-    plot_heatmap(pairs_labels_df, PAIRS_LABELS_COUNT_HEATMAP_FILE, 'labels pairs co-occurances')
+    plot_stats(entities_count, labels_count, pairs_count, pairs_labels_count, output_dir='sampled_data_stats')
 
     '''
     Step 8: write the dataset
