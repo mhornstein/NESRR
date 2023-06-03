@@ -7,6 +7,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from itertools import count
 import random
+import math
 
 DEBUG = True
 
@@ -38,6 +39,8 @@ LABELS_COUNT_BARCHART_FILE = f'{output_dir}\\labels_count.png'
 PAIRS_LABELS_COUNT_CSV_FILE = f'{output_dir}\\pairs_labels_count.csv'
 PAIRS_LABELS_COUNT_HEATMAP_FILE = f'{output_dir}\\pairs_labels_count.png'
 
+MASK_LABEL = '[MASK]'
+
 class SentenceData:
     def __init__(self, id, txt, entities):
         self.id = id
@@ -46,6 +49,25 @@ class SentenceData:
 
     def filter_entities(self, entities_to_keep):
         self.entities = {ent for ent in self.entities if ent[0] in entities_to_keep}
+
+    def get_masked_sent(self):
+        t = self.txt
+
+        ent1_txt = self.entities[0][0]
+        s1 = t.find(ent1_txt)
+        e1 = s1 + len(ent1_txt)
+
+        ent2_txt = self.entities[1][0]
+        s2 = t.find(ent2_txt)
+        e2 = s2 + len(ent2_txt)
+
+        if s1 < s2:
+            masked_txt = t[0:s1] + MASK_LABEL + t[e1:s2] + MASK_LABEL + t[e2:]
+        else:
+            masked_txt = t[0:s2] + MASK_LABEL + t[e2:s1] + MASK_LABEL + t[e1:]
+
+        return masked_txt
+
 
 '''
 We load spacy and disable irrelevant component for NER extraction
@@ -94,9 +116,9 @@ def extract_text_data(texts):
 
         for sent in doc.sents:
             entities = sent.ents
-            filtered_entities = {(entity.text, entity.label_, entity.start_char, entity.end_char) for entity in entities if entity.label_ in ENTITIES_TYPES}
+            filtered_entities = {(entity.text, entity.label_) for entity in entities if entity.label_ in ENTITIES_TYPES}
             if len(filtered_entities) >= 2: # Keep only sentences with at least one candidate pairs
-                for ent_text, *_ in filtered_entities:
+                for ent_text, _ in filtered_entities:
                     entities_counter[ent_text] += 1
                 sent_id = next(id_counter)
                 sentences_data[sent_id] = SentenceData(id=sent_id, txt=str(sent), entities=filtered_entities)
@@ -172,6 +194,17 @@ def sample_and_sort_entities_in_sentences(sentences_data):
         entities = random.sample(list(entities), 2)
         entities = sorted(entities, key=lambda x: x[0])  # Keep lexicographic order after sampling
         sentence_data.entities = entities
+
+def calc_mi_score(ent1, ent2, entities_count, pairs_count):
+    '''
+    calculates the mi score according to the furmula:
+    MI(ent1, ent2) = P(ent1, ent2) * log2(P(ent1, ent2) / (P(ent1) * P(ent2)))
+    '''
+    p_ent1_ent2 = pairs_count[(ent1, ent2)] / len(pairs_count)
+    p_ent1 = entities_count[ent1] / len(entities_count)
+    p_ent2 = entities_count[ent2] / len(entities_count)
+    mi_score = p_ent1_ent2 * math.log2(p_ent1_ent2 / (p_ent1 * p_ent2))
+    return mi_score
 
 if __name__ == '__main__':
     '''
@@ -263,4 +296,12 @@ if __name__ == '__main__':
     '''
     Step 8: write the dataset
     '''
-    print()
+    for sent_id in sorted(list(sentences_data.keys())):
+        sent_data = sentences_data[sent_id]
+        org_sent = sent_data.txt
+        masked_sent = sent_data.get_masked_sent()
+        ent1, label1 = sent_data.entities[0]
+        ent2, label2 = sent_data.entities[1]
+        mi_score = calc_mi_score(ent1, ent2, entities_count, pairs_count)
+
+        print(f'{sent_id},{org_sent},{masked_sent},{ent1},{label1},{ent2},{label2},{mi_score}')
