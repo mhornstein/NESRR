@@ -1,0 +1,31 @@
+The data_extractor.py script loads, process and samples a dataset from the WikiText-103 dataset.
+
+How to run the script?
+======================
+1. Download the WikiText-103 dataset and unzip it. The unzipped directory would contain 3 files: wiki.train.raw, wiki.valid.raw and wiki.test.raw.
+2. In the cmd, write: python data_extractor.py <path to the unzipped directory>.
+for example: python data_extractor.py C:\Users\User\Documents\wikitext-103-raw
+
+Script output
+=============
+* Measurements will be logged to the console.
+* original_data_stats directory will be created with csv files and plots of stats of the WikiText-103 dataset.
+* sampled_data_stats directory will be created with csv files and plots of stats of the sampled dataset.
+* The sampled dataset will be created under the file 'data.csv'
+
+Link to WikiText-103 dataset
+============================
+Dataset description link: https://blog.salesforceairesearch.com/the-wikitext-long-term-dependency-language-modeling-dataset/
+Direct link to download the dataset: https://s3.amazonaws.com/research.metamind.io/wikitext/wikitext-103-raw-v1.zip?ref=blog.salesforceairesearch.com
+
+More configurations
+===================
+One can further adjust other script parameters by updating the K, N_PROCESS, TEXT_BATCH_SIZE and N constants.
+Their roles are documented in the script beside them.
+
+Environment
+===========
+The script was tested in the following config:
+OS: Windows
+Python version: 3.10.8
+Spacy version: 3.5.3 with en_core_web_lg model installed
