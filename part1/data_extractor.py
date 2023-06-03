@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from itertools import count
 import random
 import math
+import csv
 
 DEBUG = True
 
@@ -38,6 +39,7 @@ LABELS_COUNT_CSV_FILE = f'{output_dir}\\labels_count.csv'
 LABELS_COUNT_BARCHART_FILE = f'{output_dir}\\labels_count.png'
 PAIRS_LABELS_COUNT_CSV_FILE = f'{output_dir}\\pairs_labels_count.csv'
 PAIRS_LABELS_COUNT_HEATMAP_FILE = f'{output_dir}\\pairs_labels_count.png'
+DATASET_FILE = f'{output_dir}\\data.csv'
 
 MASK_LABEL = '[MASK]'
 
@@ -206,6 +208,21 @@ def calc_mi_score(ent1, ent2, entities_count, pairs_count):
     mi_score = p_ent1_ent2 * math.log2(p_ent1_ent2 / (p_ent1 * p_ent2))
     return mi_score
 
+def write_to_csv(sentences_data, output_file):
+    csvfile = open(output_file, 'w', newline='', encoding='utf8')
+    writer = csv.writer(csvfile)
+    writer.writerow(['sent_id', 'sent', 'masked_sent', 'ent1', 'label1', 'ent2', 'label2', 'mi_score'])
+
+    for sent_id in sorted(list(sentences_data.keys())):
+        sent_data = sentences_data[sent_id]
+        sent = sent_data.txt
+        masked_sent = sent_data.get_masked_sent()
+        ent1, label1 = sent_data.entities[0]
+        ent2, label2 = sent_data.entities[1]
+        mi_score = calc_mi_score(ent1, ent2, entities_count, pairs_count)
+        entry = [sent_id, sent, masked_sent, ent1, label1, ent2, label2, mi_score]
+        writer.writerow(entry)
+
 if __name__ == '__main__':
     '''
     Step 1: load all the texts. 
@@ -296,12 +313,4 @@ if __name__ == '__main__':
     '''
     Step 8: write the dataset
     '''
-    for sent_id in sorted(list(sentences_data.keys())):
-        sent_data = sentences_data[sent_id]
-        org_sent = sent_data.txt
-        masked_sent = sent_data.get_masked_sent()
-        ent1, label1 = sent_data.entities[0]
-        ent2, label2 = sent_data.entities[1]
-        mi_score = calc_mi_score(ent1, ent2, entities_count, pairs_count)
-
-        print(f'{sent_id},{org_sent},{masked_sent},{ent1},{label1},{ent2},{label2},{mi_score}')
+    write_to_csv(sentences_data, DATASET_FILE)
