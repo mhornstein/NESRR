@@ -10,21 +10,25 @@ import random
 import math
 import csv
 from itertools import combinations
+import sys
+
+if len(sys.argv) == 1:
+    raise ValueError("Path to WikiText-103 dataset missing")
+else:
+    input_dir = sys.argv[1]
 
 DEBUG = True
 
 if DEBUG:
-    INPUT_DIR = '../data/dummy'
     K = 3
     N_PROCESS = 1
     TEXT_BATCH_SIZE = 10
     N = 15
 else:
-    INPUT_DIR = '../data/wikitext-103-raw'
-    K = 1000
-    N_PROCESS = 4
-    TEXT_BATCH_SIZE = 100
-    N = 10000
+    K = 1000 # number os sentences Spacy will process in each batch
+    N_PROCESS = 4 # number of processes for the Spacy processing
+    TEXT_BATCH_SIZE = 100 # A message will be presented in the console each TEXT_BATCH_SIZE processed sentences to illustrate the progress of the processing
+    N = 10000 # number of sentences to sample
 
 DATASET_FILE = 'data.csv'
 
@@ -242,7 +246,7 @@ def plot_stats(entities_count, labels_count, pairs_count, pairs_labels_count, ou
 if __name__ == '__main__':
     start_time = time.time()
 
-    texts = load_texts(INPUT_DIR) # We load all texts together so we will process all sentences using Spacy all at once (this will speed things up). Reference: https://github.com/explosion/spaCy/discussions/8402
+    texts = load_texts(input_dir) # We load all texts together so we will process all sentences using Spacy all at once (this will speed things up). Reference: https://github.com/explosion/spaCy/discussions/8402
     print(f'Total lines extracted (containing one sentence or more): {len(texts)}')
 
     sentences_data, entities_count = extract_text_data(texts)
@@ -273,4 +277,4 @@ if __name__ == '__main__':
 
     write_to_csv(sentences_data, DATASET_FILE)
 
-    print(f"Dataset creation time: {time.time() - start_time} seconds")
+    print(f"Dataset creation total time: {time.time() - start_time} seconds")
