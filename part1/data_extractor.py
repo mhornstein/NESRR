@@ -82,6 +82,10 @@ note: I chose not to add NORP: Nationalities or religious or political groups
 ENTITIES_TYPES = {'FAC', 'EVENT', 'PERSON', 'ORG', 'PRODUCT', 'GPE', 'WORK_OF_ART', 'LAW', 'LOC'}
 
 def load_texts(dir):
+    '''
+    Loads all the .raw files from the given dir
+    :return: list of texts (text = paragraph consisting of one or more sentences according to the original .raw file)
+    '''
     texts = []
     for file in os.listdir(dir):
         print(f'Loading file: {file}')
@@ -94,12 +98,16 @@ def load_texts(dir):
     return texts
 
 def extract_text_data(texts):
+    '''
+    Given list of texts, returns a dictionary mapping sentence-id -> SentenceData instance, and entities count (for future use)
+    The SentenceData are created according to the information extracted from the sentences that were processed using the Spacy library
+    '''
+
     sentences_data = {}
     entities_counter = Counter()
     id_counter = count(start=1)
 
     for i, doc in enumerate(nlp.pipe(texts, n_process=N_PROCESS), start=1): # Use N_PROCESS for optimal running time. Reference: https://spacy.io/usage/processing-pipelines
-        # print(f'{i}: {doc}', end='')
         if i % TEXT_BATCH_SIZE == 0:
             print(f'total texts processed: {i}/{len(texts)} = {i/len(texts) :.2%}')
 
@@ -232,83 +240,37 @@ def plot_stats(entities_count, labels_count, pairs_count, pairs_labels_count, ou
     plot_heatmap(pairs_labels_df, f'{output_dir}\\pairs_labels_count.png', 'labels pairs co-occurances')
 
 if __name__ == '__main__':
-    '''
-    Step 1: load all the texts. 
-    Reason: We process all the texts *together* due to the fact that when you create a spacy doc, 
-    it requires getting and then releasing a number of resources that by default are not re-used between calls.
-    Therefore, calling doc once for all texts might speed up the processing.
-    Reference: https://github.com/explosion/spaCy/discussions/8402
-    '''
     start_time = time.time()
 
-    texts = load_texts(INPUT_DIR)
-    print(f'Total lines extracted: {len(texts)}')
-
-    print(f"Loading files time: {time.time() - start_time} seconds")
-
-    '''
-    Step 2: extract and count entities
-    '''
-    start_time = time.time()
+    texts = load_texts(INPUT_DIR) # We load all texts together so we will process all sentences using Spacy all at once (this will speed things up). Reference: https://github.com/explosion/spaCy/discussions/8402
+    print(f'Total lines extracted (containing one sentence or more): {len(texts)}')
 
     sentences_data, entities_count = extract_text_data(texts)
-    print(f'\nTotal relevant entities found: {len(entities_count)}') # Relevant entity: entity that is of a relevant label and has another entity in the sentence
-
-    print(f"Entities extraction and count time: {time.time() - start_time} seconds")
-
-    '''
-    Step 3: remove entities that appear less than K + log the result
-    '''
-    start_time = time.time()
+    print(f'Total relevant entities found: {len(entities_count)}') # Relevant entity: entity that is of a relevant label and has another entity in the sentence
+    print(f'Total relevant sentences found: {len(sentences_data)}') # Relevant sentence: it has at least 2 relevant entities in it
 
     filtered_entities_count = Counter({key: value for key, value in entities_count.items() if value >= K})
     print(f'entities >= {K} found: {len(filtered_entities_count)}')
 
-    print(f"Filter by K time: {time.time() - start_time} seconds")
-
-    '''
-    Step 4: filter out entities with too few occurances from the sentences.
-    keep only the sentences that has at least one pair of entities left after the filtering.
-    '''
-    start_time = time.time()
     filtered_entities_set = set(filtered_entities_count.keys())
     for sentence_data in sentences_data.values():
         sentence_data.filter_entities(filtered_entities_set)
     sentences_data = { i: s_data for i, s_data in sentences_data.items() if len(s_data.entities) >= 2 }
-    print(f'Total relevant sentences: {len(sentences_data)}')
-    print(f"Removing irrelevant entities from sentences data time: {time.time() - start_time} seconds")
+    print(f'Relevant sentences after rare entities filtering: {len(sentences_data)}')
 
-    '''
-    Step 5: write data stats
-    '''
     entities_count, labels_count, pairs_count, pairs_labels_count = extract_pairs_and_labels_stats(sentences_data)
     plot_stats(entities_count, labels_count, pairs_count, pairs_labels_count, output_dir='original_data_stats')
-
-    '''
-    Step 5: sample N sentences for the dataset. Sample only 2 entities to each sentence
-    '''
-    start_time = time.time()
 
     sentences_data = sample_sentences(sentences_data, N)
     sample_and_sort_entities_in_sentences(sentences_data)
 
-    print(f"Sentences and entities took: {time.time() - start_time} seconds")
-
-    '''
-    Step 6: count the pairs + labels statistics 
-    '''
     entities_count, labels_count, pairs_count, pairs_labels_count = extract_pairs_and_labels_stats(sentences_data)
     assert sum(entities_count.values()) == 2 * N
     assert sum(labels_count.values()) == 2 * N
     assert sum(pairs_count.values()) == N
     assert sum(pairs_labels_count.values()) == 2 * N
-
-    '''
-    Step 7: output csv files, heatmaps and bar charts of the dataset statistics
-    '''
     plot_stats(entities_count, labels_count, pairs_count, pairs_labels_count, output_dir='sampled_data_stats')
 
-    '''
-    Step 8: write the dataset
-    '''
     write_to_csv(sentences_data, DATASET_FILE)
+
+    print(f"Dataset creation time: {time.time() - start_time} seconds")
