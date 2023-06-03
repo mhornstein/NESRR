@@ -30,7 +30,7 @@ else:
     TEXT_BATCH_SIZE = 100 # A message will be presented in the console each TEXT_BATCH_SIZE processed sentences to illustrate the progress of the processing
     N = 10000 # number of sentences to sample
 
-DATASET_FILE = 'data.csv'
+DATASET_FILE = 'data.csv'  # The name of the sampled dataset file
 
 MASK_LABEL = '[MASK]'
 

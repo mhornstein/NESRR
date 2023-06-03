@@ -20,7 +20,7 @@ Direct link to download the dataset: https://s3.amazonaws.com/research.metamind.
 
 More configurations
 ===================
-One can further adjust other script parameters by updating the K, N_PROCESS, TEXT_BATCH_SIZE and N constants.
+One can further adjust other script parameters by updating the K, N_PROCESS, TEXT_BATCH_SIZE, N and DATASET_FILE constants.
 Their roles are documented in the script beside them.
 
 Environment
