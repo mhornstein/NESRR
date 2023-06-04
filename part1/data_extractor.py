@@ -43,25 +43,6 @@ class SentenceData:
     def filter_entities(self, entities_to_keep):
         self.entities = {ent for ent in self.entities if ent[0] in entities_to_keep}
 
-    def get_masked_sent(self):
-        t = self.txt
-
-        ent1_txt = self.entities[0][0]
-        s1 = t.find(ent1_txt)
-        e1 = s1 + len(ent1_txt)
-
-        ent2_txt = self.entities[1][0]
-        s2 = t.find(ent2_txt)
-        e2 = s2 + len(ent2_txt)
-
-        if s1 < s2:
-            masked_txt = t[0:s1] + MASK_LABEL + t[e1:s2] + MASK_LABEL + t[e2:]
-        else:
-            masked_txt = t[0:s2] + MASK_LABEL + t[e2:s1] + MASK_LABEL + t[e1:]
-
-        return masked_txt
-
-
 '''
 We load spacy and disable irrelevant component for NER extraction
 reference: https://stackoverflow.com/questions/66613770/how-to-optimize-spacy-pipe-for-ner-only-using-an-existing-model-no-training
@@ -206,9 +187,9 @@ def calc_mi_score(ent1, ent2, entities_count, pairs_count):
     calculates the mi score according to the furmula:
     MI(ent1, ent2) = P(ent1, ent2) * log2(P(ent1, ent2) / (P(ent1) * P(ent2)))
     '''
-    p_ent1_ent2 = pairs_count[(ent1, ent2)] / len(pairs_count)
-    p_ent1 = entities_count[ent1] / len(entities_count)
-    p_ent2 = entities_count[ent2] / len(entities_count)
+    p_ent1_ent2 = pairs_count[(ent1, ent2)] / N
+    p_ent1 = entities_count[ent1] / N
+    p_ent2 = entities_count[ent2] / N
     mi_score = p_ent1_ent2 * math.log2(p_ent1_ent2 / (p_ent1 * p_ent2))
     return mi_score
 
@@ -220,12 +201,26 @@ def write_to_csv(sentences_data, output_file):
     for sent_id in sorted(list(sentences_data.keys())):
         sent_data = sentences_data[sent_id]
         sent = sent_data.txt
-        masked_sent = sent_data.get_masked_sent()
         ent1, label1 = sent_data.entities[0]
         ent2, label2 = sent_data.entities[1]
-        mi_score = calc_mi_score(ent1, ent2, entities_count, pairs_count)
+        mi_score = calc_mi_score(ent1, ent2, entities_count, pairs_count) # mi score required the lexicographic order as present in the counts
+
+        if sent.find(ent1) > sent.find(ent2): # switch entities order to fit the sentence order
+            ent1, label1 = sent_data.entities[1]
+            ent2, label2 = sent_data.entities[0]
+
+        s1 = sent.find(ent1)
+        e1 = s1 + len(ent1)
+
+        s2 = sent.find(ent2)
+        e2 = s2 + len(ent2)
+
+        masked_sent = sent[0:s1] + MASK_LABEL + sent[e1:s2] + MASK_LABEL + sent[e2:]
+
         entry = [sent_id, sent, masked_sent, ent1, label1, ent2, label2, mi_score]
         writer.writerow(entry)
+
+    csvfile.close()
 
 
 def plot_stats(entities_count, labels_count, pairs_count, pairs_labels_count, output_dir):
