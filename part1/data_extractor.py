@@ -17,10 +17,18 @@ if len(sys.argv) == 1:
 else:
     input_dir = sys.argv[1]
 
-K = 1000 # number os sentences Spacy will process in each batch
-N_PROCESS = 4 # number of processes for the Spacy processing
-TEXT_BATCH_SIZE = 100 # A message will be presented in the console each TEXT_BATCH_SIZE processed sentences to illustrate the progress of the processing
-N = 10000 # number of sentences to sample
+DEBUG = False
+
+if DEBUG:
+    K = 3
+    N_PROCESS = 1
+    TEXT_BATCH_SIZE = 10
+    N = 15
+else:
+    K = 1000 # number os sentences Spacy will process in each batch
+    N_PROCESS = 4 # number of processes for the Spacy processing
+    TEXT_BATCH_SIZE = 100 # A message will be presented in the console each TEXT_BATCH_SIZE processed sentences to illustrate the progress of the processing
+    N = 10000 # number of sentences to sample
 
 DATASET_FILE = 'data.csv'  # The name of the sampled dataset file
 
