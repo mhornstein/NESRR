@@ -18,18 +18,10 @@ if len(sys.argv) == 1:
 else:
     input_dir = sys.argv[1]
 
-DEBUG = False
-
-if DEBUG:
-    K = 3
-    N_PROCESS = 1
-    TEXT_BATCH_SIZE = 10
-    N = 15
-else:
-    K = 1000 # number os sentences Spacy will process in each batch
-    N_PROCESS = 4 # number of processes for the Spacy processing
-    TEXT_BATCH_SIZE = 100 # A message will be presented in the console each TEXT_BATCH_SIZE processed sentences to illustrate the progress of the processing
-    N = 100000 # number of sentences to sample
+K = 1000 # Only entities with over K occurrences will be kept along with their frequency counts.
+N_PROCESS = 4 # number of processes for the Spacy processing
+TEXT_BATCH_SIZE = 100 # A message will be presented in the console each TEXT_BATCH_SIZE processed sentences to illustrate the progress of the processing
+N = 100000 # number of sentences to sample
 
 DATASET_FILE = 'data.csv'  # The name of the sampled dataset file
 
@@ -284,6 +276,10 @@ def plot_stats(entities_count, labels_count, pairs_count, pairs_labels_count, ou
     plot_heatmap(pairs_labels_df, f'{output_dir}\\pairs_labels_count.png', 'labels pairs co-occurances')
 
 def validate_probability(entities_prob, pairs_prob):
+    '''
+    Picks a Simple Random Sample of 20 entities (and if entities count < 20 - takes as much as possible).
+    Returns true iff for every picked entity x, p(x) = sum(p(x,y)) for every entity y that appear with x in a pair.
+    '''
     flag = True
     n = min(20, len(entities_prob))
     sampled_entities = random.sample(list(entities_prob.keys()), n)
@@ -293,7 +289,7 @@ def validate_probability(entities_prob, pairs_prob):
         for ent1, ent2 in pairs_prob.keys():
             if ent1 == ent or ent2 == ent:
                 marginal_probability += pairs_prob[(ent1, ent2)]
-        if abs(marginal_probability - p_ent) > EPSILON:
+        if abs(marginal_probability - p_ent) > EPSILON: # Use epsilon for Python's inaccuracy in the calculation
             flag = False
     return flag
 
