@@ -29,3 +29,9 @@ The script was tested in the following config:
 OS: Windows
 Python version: 3.10.8
 Spacy version: 3.5.3 with en_core_web_lg model installed
+
+Note: The "Script_output" directory
+===================================
+The directory script_output contains the output of running the script to generate the dataset that we'll make use of.
+Note that as the files were big, they were committed using Git Large File Storage (Git LFS). To clone the repository with this
+files, you need to have Git LFS installed.
