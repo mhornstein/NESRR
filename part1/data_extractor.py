@@ -5,6 +5,7 @@ import time
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+plt.switch_backend('agg') # Reference: https://stackoverflow.com/questions/52839758/matplotlib-and-runtimeerror-main-thread-is-not-in-main-loop
 from itertools import count
 import random
 import math
@@ -28,11 +29,12 @@ else:
     K = 1000 # number os sentences Spacy will process in each batch
     N_PROCESS = 4 # number of processes for the Spacy processing
     TEXT_BATCH_SIZE = 100 # A message will be presented in the console each TEXT_BATCH_SIZE processed sentences to illustrate the progress of the processing
-    N = 10000 # number of sentences to sample
+    N = 100000 # number of sentences to sample
 
 DATASET_FILE = 'data.csv'  # The name of the sampled dataset file
 
 MASK_LABEL = '[MASK]'
+EPSILON = 1e-6
 
 class SentenceData:
     def __init__(self, id, txt, entities):
@@ -82,14 +84,8 @@ def load_texts(dir):
         f.close()
     return texts
 
-def extract_text_data(texts):
-    '''
-    Given list of texts, returns a dictionary mapping sentence-id -> SentenceData instance, and entities count (for future use)
-    The SentenceData are created according to the information extracted from the sentences that were processed using the Spacy library
-    '''
-
+def text_to_sentence_data(texts):
     sentences_data = {}
-    entities_counter = Counter()
     id_counter = count(start=1)
 
     for i, doc in enumerate(nlp.pipe(texts, n_process=N_PROCESS), start=1): # Use N_PROCESS for optimal running time. Reference: https://spacy.io/usage/processing-pipelines
@@ -99,14 +95,56 @@ def extract_text_data(texts):
         for sent in doc.sents:
             entities = sent.ents
             filtered_entities = {(entity.text, entity.label_) for entity in entities if entity.label_ in ENTITIES_TYPES}
-            if len(filtered_entities) >= 2: # Keep only sentences with at least one candidate pairs
-                for ent_text, _ in filtered_entities:
-                    entities_counter[ent_text] += 1
+            if len(filtered_entities) == 0:
+                continue
+            else:
                 sent_id = next(id_counter)
                 sentences_data[sent_id] = SentenceData(id=sent_id, txt=str(sent), entities=filtered_entities)
-    return sentences_data, entities_counter
 
-def extract_pairs_and_labels_stats(sentences_data):
+    return sentences_data
+
+def extract_probs(sentences_data):
+    '''
+    This function returns 2 probabilities calculation:
+    * entities_prob - entities_prob[x] = the probability of entity x to be part of a pair
+    * pairs_prob - pairs_prob[(x,y)] = the probability of lexicographic-sorted pair (x,y) to appear as a pair
+
+    Note that while all entries in pairs_prob are i.i.d, the case is not the same for entities_prob is not.
+    A basic example to illustrate why:
+    if we have just one pair (x,y), pairs_prob[(x,y)] = 1, but entities_prob[x] = entities_prob[y] = 1.
+    So, x and y are not independent - they are dependent on each other.
+    '''
+    entities_prob = Counter()
+    pairs_prob = Counter()
+
+    for sent_data in sentences_data.values():
+        entities = sent_data.entities
+
+        if len(entities) < 2:
+            continue
+
+        sorted_entities = sorted(entities, key=lambda x: x[0])  # Keep lexicographic order
+        all_pairs = list(combinations(sorted_entities, 2))
+        for ent1, ent2 in all_pairs:
+            pairs_prob[(ent1[0], ent2[0])] += 1
+
+        n = len(sorted_entities)
+        for ent in entities:
+            entities_prob[ent[0]] += n - 1 # this is the number of possible pairs ent is part of
+
+    # Now we convert counts => to probabilities
+
+    n = sum(entities_prob.values())
+    for key in entities_prob:
+        entities_prob[key] = (entities_prob[key] * 2) / n # ent has 2 options: to be either the first or the second in the pair
+
+    n = sum(pairs_prob.values())
+    for key in pairs_prob:
+        pairs_prob[key] /= n
+
+    return entities_prob, pairs_prob
+
+def extract_sentences_stats(sentences_data):
     entities_count = Counter()
     labels_count = Counter()
     pairs_count = Counter()
@@ -175,25 +213,24 @@ def sample_sentences(sentences_data, n):
     sampled_ids = ids[:n]
     return {i: sentences_data[i] for i in sampled_ids}
 
-def sample_and_sort_entities_in_sentences(sentences_data):
+def sample_entities_in_sentences(sentences_data):
     for sentence_data in sentences_data.values():
         entities = sentence_data.entities
         entities = random.sample(list(entities), 2)
-        entities = sorted(entities, key=lambda x: x[0])  # Keep lexicographic order after sampling
         sentence_data.entities = entities
 
-def calc_mi_score(ent1, ent2, entities_count, pairs_count):
+def calc_mi_score(ent1, ent2, entities_prob, pairs_prob):
     '''
     calculates the mi score according to the furmula:
     MI(ent1, ent2) = P(ent1, ent2) * log2(P(ent1, ent2) / (P(ent1) * P(ent2)))
     '''
-    p_ent1_ent2 = pairs_count[(ent1, ent2)] / N
-    p_ent1 = entities_count[ent1] / N
-    p_ent2 = entities_count[ent2] / N
+    p_ent1_ent2 = pairs_prob[(ent1, ent2)] if ent1 < ent2 else pairs_prob[(ent2, ent1)] # Keep lexicographic order
+    p_ent1 = entities_prob[ent1]
+    p_ent2 = entities_prob[ent2]
     mi_score = p_ent1_ent2 * math.log2(p_ent1_ent2 / (p_ent1 * p_ent2))
     return mi_score
 
-def write_to_csv(sentences_data, output_file):
+def create_dataset(sentences_data, entities_prob, pairs_prob, output_file):
     csvfile = open(output_file, 'w', newline='', encoding='utf8')
     writer = csv.writer(csvfile)
     writer.writerow(['sent_id', 'sent', 'masked_sent', 'ent1', 'label1', 'ent2', 'label2', 'mi_score'])
@@ -203,7 +240,7 @@ def write_to_csv(sentences_data, output_file):
         sent = sent_data.txt
         ent1, label1 = sent_data.entities[0]
         ent2, label2 = sent_data.entities[1]
-        mi_score = calc_mi_score(ent1, ent2, entities_count, pairs_count) # mi score required the lexicographic order as present in the counts
+        mi_score = calc_mi_score(ent1, ent2, entities_prob, pairs_prob) # mi score required the lexicographic order as present in the counts
 
         if sent.find(ent1) > sent.find(ent2): # switch entities order to fit the sentence order
             ent1, label1 = sent_data.entities[1]
@@ -221,7 +258,6 @@ def write_to_csv(sentences_data, output_file):
         writer.writerow(entry)
 
     csvfile.close()
-
 
 def plot_stats(entities_count, labels_count, pairs_count, pairs_labels_count, output_dir):
     if not os.path.exists(f'./{output_dir}'):
@@ -247,38 +283,51 @@ def plot_stats(entities_count, labels_count, pairs_count, pairs_labels_count, ou
     pairs_labels_df.to_csv(f'{output_dir}\\pairs_labels_count.csv', index=False)
     plot_heatmap(pairs_labels_df, f'{output_dir}\\pairs_labels_count.png', 'labels pairs co-occurances')
 
+def validate_probability(entities_prob, pairs_prob):
+    flag = True
+    n = min(20, len(entities_prob))
+    sampled_entities = random.sample(list(entities_prob.keys()), n)
+    for ent in sampled_entities:
+        p_ent = entities_prob[ent]
+        marginal_probability = 0
+        for ent1, ent2 in pairs_prob.keys():
+            if ent1 == ent or ent2 == ent:
+                marginal_probability += pairs_prob[(ent1, ent2)]
+        if abs(marginal_probability - p_ent) > EPSILON:
+            flag = False
+    return flag
+
 if __name__ == '__main__':
     start_time = time.time()
 
     texts = load_texts(input_dir) # We load all texts together so we will process all sentences using Spacy all at once (this will speed things up). Reference: https://github.com/explosion/spaCy/discussions/8402
     print(f'Total lines extracted (containing one sentence or more): {len(texts)}')
 
-    sentences_data, entities_count = extract_text_data(texts)
-    print(f'Total relevant entities found: {len(entities_count)}') # Relevant entity: entity that is of a relevant label and has another entity in the sentence
-    print(f'Total relevant sentences found: {len(sentences_data)}') # Relevant sentence: it has at least 2 relevant entities in it
+    sentences_data = text_to_sentence_data(texts)
 
-    filtered_entities_count = Counter({key: value for key, value in entities_count.items() if value >= K})
-    print(f'entities >= {K} found: {len(filtered_entities_count)}')
+    entities_count, labels_count, pairs_count, pairs_labels_count = extract_sentences_stats(sentences_data)
+    plot_stats(entities_count, labels_count, pairs_count, pairs_labels_count, output_dir='original_sentences_stats')
 
-    filtered_entities_set = set(filtered_entities_count.keys())
+    entities_prob, pairs_prob = extract_probs(sentences_data)
+    assert validate_probability(entities_prob, pairs_prob) == True
+
+    filtered_entities_set = {key for key, value in entities_count.items() if value >= K}
     for sentence_data in sentences_data.values():
         sentence_data.filter_entities(filtered_entities_set)
     sentences_data = { i: s_data for i, s_data in sentences_data.items() if len(s_data.entities) >= 2 }
-    print(f'Relevant sentences after rare entities filtering: {len(sentences_data)}')
-
-    entities_count, labels_count, pairs_count, pairs_labels_count = extract_pairs_and_labels_stats(sentences_data)
-    plot_stats(entities_count, labels_count, pairs_count, pairs_labels_count, output_dir='original_data_stats')
+    print(f'Entities >= {K} found: {len(filtered_entities_set)}')
+    print(f'Number of sentences left after filtering entities < K: {len(sentences_data)}')
 
     sentences_data = sample_sentences(sentences_data, N)
-    sample_and_sort_entities_in_sentences(sentences_data)
+    sample_entities_in_sentences(sentences_data)
 
-    entities_count, labels_count, pairs_count, pairs_labels_count = extract_pairs_and_labels_stats(sentences_data)
+    entities_count, labels_count, pairs_count, pairs_labels_count = extract_sentences_stats(sentences_data)
     assert sum(entities_count.values()) == 2 * N
     assert sum(labels_count.values()) == 2 * N
     assert sum(pairs_count.values()) == N
     assert sum(pairs_labels_count.values()) == 2 * N
-    plot_stats(entities_count, labels_count, pairs_count, pairs_labels_count, output_dir='sampled_data_stats')
+    plot_stats(entities_count, labels_count, pairs_count, pairs_labels_count, output_dir='sampled_sentences_stats')
 
-    write_to_csv(sentences_data, DATASET_FILE)
+    create_dataset(sentences_data, entities_prob, pairs_prob, DATASET_FILE)
 
     print(f"Dataset creation total time: {time.time() - start_time} seconds")
