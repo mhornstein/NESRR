@@ -12,6 +12,7 @@ import math
 import csv
 from itertools import combinations
 import sys
+from sacremoses import MosesDetokenizer
 
 if len(sys.argv) == 1:
     raise ValueError("Path to WikiText-103 dataset missing")
@@ -60,6 +61,21 @@ note: I chose not to add NORP: Nationalities or religious or political groups
 '''
 ENTITIES_TYPES = {'FAC', 'EVENT', 'PERSON', 'ORG', 'PRODUCT', 'GPE', 'WORK_OF_ART', 'LAW', 'LOC'}
 
+detokenizer = MosesDetokenizer()
+def undo_tokenization(line):
+    '''
+    This function reverts the preprocessing done for the dataset, as explained in the paper:
+    https://arxiv.org/pdf/1609.07843.pdf
+
+    Note: I found more tokenization issues, such as big hyphens (' – ' => '-') or slashes ('131 / M-46' = > '131/M-46'
+    But as it wasn't referred to in the paper, I assume the data was crawled this way.
+    '''
+    l = line.replace(' @.@ ', '.') # @.@ for numbers. e.g. 1.2 => 1 @.@ 2
+    l = l.replace(' @,@ ', ',') # @,@ for numbers. e.g 1,202 => 1 @,@ 202
+    l = l.replace(' @-@ ', '-') # @-@ was used the escape hyphens. removing it
+    detokenized_sentence = detokenizer.detokenize(l.split())
+    return detokenized_sentence
+
 def load_texts(dir):
     '''
     Loads all the .raw files from the given dir
@@ -72,7 +88,9 @@ def load_texts(dir):
         f = open(file_path, "r", encoding="utf8")
         for line in f:
             if line != '\n' and line != ' \n' and not line.startswith(' = '):
-                texts.append(line.strip())
+                l = line.strip()
+                l = undo_tokenization(l)
+                texts.append(l)
         f.close()
     return texts
 
