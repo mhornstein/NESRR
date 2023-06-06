@@ -27,7 +27,8 @@ N = 100000 # number of sentences to sample
 DATASET_FILE = 'data.csv'  # The name of the sampled dataset file
 
 MASK_LABEL = '[MASK]'
-EPSILON = 1e-6
+PROBABILITY_EPSILON = 0.001
+MI_EPSILON = 1e-9
 
 class SentenceData:
     def __init__(self, id, txt, entities):
@@ -230,15 +231,25 @@ def sample_entities_in_sentences(sentences_data):
         sentence_data.entities = entities
 
 def calc_mi_score(ent1, ent2, entities_prob, pairs_prob):
-    '''
-    calculates the mi score according to the furmula:
-    MI(ent1, ent2) = P(ent1, ent2) * log2(P(ent1, ent2) / (P(ent1) * P(ent2)))
-    '''
-    p_ent1_ent2 = pairs_prob[(ent1, ent2)] if ent1 < ent2 else pairs_prob[(ent2, ent1)] # Keep lexicographic order
-    p_ent1 = entities_prob[ent1]
-    p_ent2 = entities_prob[ent2]
-    mi_score = p_ent1_ent2 * math.log2(p_ent1_ent2 / (p_ent1 * p_ent2))
-    return mi_score
+    ent1, ent2 = (ent1, ent2) if ent1 < ent2 else (ent2, ent1) # Keep lexicographic order
+
+    p_ent1_1 = entities_prob[ent1] # probability for ent1 to appear in a pair (success = 1)
+    p_ent1_0 = 1-p_ent1_1 # probability for ent1 not to appear in a pair (success = 0)
+
+    p_ent2_1 = entities_prob[ent2] # same as above - but for ent2
+    p_ent2_0 = 1-p_ent2_1
+
+    p_ent1_1_p_ent2_1 = pairs_prob[(ent1, ent2)] # probability for both entities to appear in a pair (success = 1).
+    # Below, 0 follows bernouli "failure", i.e. the entity didn't appear in the pair
+    p_ent1_1_p_ent2_0 = sum([pairs_prob[(e1, e2)] for e1, e2 in pairs_prob if (e1 == ent1 and e2 != ent2) or (e1 != ent2 and e2 == ent1)])
+    p_ent1_0_p_ent2_1 = sum([pairs_prob[(e1, e2)] for e1, e2 in pairs_prob if (e1 != ent1 and e2 == ent2) or (e1 == ent2 and e2 != ent1)])
+    p_ent1_0_p_ent2_0 = 1 - (p_ent1_1_p_ent2_1 + p_ent1_1_p_ent2_0 + p_ent1_0_p_ent2_1)
+
+    # Note: we add MI_EPSILON to handle 0 in the log
+    return p_ent1_0_p_ent2_0 * math.log2((p_ent1_0_p_ent2_0 + MI_EPSILON) / (p_ent1_0 * p_ent2_0)) + \
+           p_ent1_0_p_ent2_1 * math.log2((p_ent1_0_p_ent2_1 + MI_EPSILON) / (p_ent1_0 * p_ent2_1)) + \
+           p_ent1_1_p_ent2_0 * math.log2((p_ent1_1_p_ent2_0 + MI_EPSILON) / (p_ent1_1 * p_ent2_0)) + \
+           p_ent1_1_p_ent2_1 * math.log2((p_ent1_1_p_ent2_1 + MI_EPSILON) / (p_ent1_1 * p_ent2_1))
 
 def create_dataset(sentences_data, entities_prob, pairs_prob, output_file):
     csvfile = open(output_file, 'w', newline='', encoding='utf8')
@@ -295,11 +306,11 @@ def plot_stats(entities_count, labels_count, pairs_count, pairs_labels_count, ou
 
 def validate_probability(entities_prob, pairs_prob):
     '''
-    Picks a Simple Random Sample of 20 entities (and if entities count < 20 - takes as much as possible).
-    Returns true iff for every picked entity x, p(x) = sum(p(x,y)) for every entity y that appear with x in a pair.
+    Picks a Simple Random Sample of 100 entities (and if entities count < 100 - takes as much as possible).
+    Returns iff for every picked entity x, p(x) = sum(p(x,y)) for every entity y that appear with x in a pair.
+    Otherwise - raises an exception
     '''
-    flag = True
-    n = min(20, len(entities_prob))
+    n = min(100, len(entities_prob))
     sampled_entities = random.sample(list(entities_prob.keys()), n)
     for ent in sampled_entities:
         p_ent = entities_prob[ent]
@@ -307,9 +318,10 @@ def validate_probability(entities_prob, pairs_prob):
         for ent1, ent2 in pairs_prob.keys():
             if ent1 == ent or ent2 == ent:
                 marginal_probability += pairs_prob[(ent1, ent2)]
-        if abs(marginal_probability - p_ent) > EPSILON: # Use epsilon for Python's inaccuracy in the calculation
-            flag = False
-    return flag
+
+        diff = abs(marginal_probability - p_ent)
+        if diff > PROBABILITY_EPSILON: # Use epsilon for Python's inaccuracy in the calculation
+            raise ValueError(f'Incorrect probability for entity: {ent}. Marginal: {marginal_probability}, P_ent: {p_ent}. Diff: {diff}')
 
 if __name__ == '__main__':
     start_time = time.time()
@@ -323,7 +335,7 @@ if __name__ == '__main__':
     plot_stats(entities_count, labels_count, pairs_count, pairs_labels_count, output_dir='original_sentences_stats')
 
     entities_prob, pairs_prob = extract_probs(sentences_data)
-    assert validate_probability(entities_prob, pairs_prob) == True
+    validate_probability(entities_prob, pairs_prob)
 
     filtered_entities_set = {key for key, value in entities_count.items() if value >= K}
     for sentence_data in sentences_data.values():
