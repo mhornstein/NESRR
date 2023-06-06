@@ -263,6 +263,7 @@ def create_dataset(sentences_data, entities_prob, pairs_prob, output_file):
         ent2, label2 = sent_data.entities[1]
         mi_score = calc_mi_score(ent1, ent2, entities_prob, pairs_prob) # mi score required the lexicographic order as present in the counts
 
+        # masking
         if sent.find(ent1) > sent.find(ent2): # switch entities order to fit the sentence order
             ent1, label1 = sent_data.entities[1]
             ent2, label2 = sent_data.entities[0]
