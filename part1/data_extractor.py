@@ -229,9 +229,9 @@ def calc_mi_score(ent1, ent2, entities_prob, pairs_prob):
 
     p_ent1_1_p_ent2_1 = pairs_prob[(ent1, ent2)] # probability for both entities to appear in a pair (success = 1).
     # Below, 0 follows bernouli "failure", i.e. the entity didn't appear in the pair
-    p_ent1_1_p_ent2_0 = sum([pairs_prob[(e1, e2)] for e1, e2 in pairs_prob if (e1 == ent1 and e2 != ent2) or (e1 != ent2 and e2 == ent1)])
-    p_ent1_0_p_ent2_1 = sum([pairs_prob[(e1, e2)] for e1, e2 in pairs_prob if (e1 != ent1 and e2 == ent2) or (e1 == ent2 and e2 != ent1)])
-    p_ent1_0_p_ent2_0 = 1 - (p_ent1_1_p_ent2_1 + p_ent1_1_p_ent2_0 + p_ent1_0_p_ent2_1)
+    p_ent1_1_p_ent2_0 = p_ent1_1 - p_ent1_1_p_ent2_1 # P(A ∩ B') = P(A) – P(A ∩ B)
+    p_ent1_0_p_ent2_1 = p_ent2_1 - p_ent1_1_p_ent2_1
+    p_ent1_0_p_ent2_0 = 1 - (p_ent1_1 + p_ent2_1 - p_ent1_1_p_ent2_1) # P(A' ∩ B') = 1 – P(A ∪ B) = 1 - [P(A) + P(B) - P(A∩B)]
 
     # Note: we add MI_EPSILON to handle 0 in the log
     return p_ent1_0_p_ent2_0 * math.log2((p_ent1_0_p_ent2_0 + MI_EPSILON) / (p_ent1_0 * p_ent2_0)) + \
