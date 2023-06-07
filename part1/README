@@ -23,8 +23,7 @@ Direct link to download the dataset: https://s3.amazonaws.com/research.metamind.
 
 The data_extractor.py script
 ============================
-The data_extractor.py script loads the preprocessed WikiText-103 data, extracts its named entities and generates the required
-dataset.
+The data_extractor.py script loads the preprocessed WikiText-103 data, extracts its named entities and generates the required dataset.
 
 How to run the script?
 ======================
