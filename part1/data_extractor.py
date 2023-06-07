@@ -17,7 +17,7 @@ from sacremoses import MosesDetokenizer
 if len(sys.argv) == 1:
     raise ValueError("Path to WikiText-103 dataset missing")
 else:
-    input_dir = sys.argv[1]
+    input_file = sys.argv[1]
 
 K = 1000 # Only entities with over K occurrences will be kept along with their frequency counts.
 N_PROCESS = 4 # number of processes for the Spacy processing
@@ -77,23 +77,11 @@ def undo_tokenization(line):
     detokenized_sentence = detokenizer.detokenize(l.split())
     return detokenized_sentence
 
-def load_texts(dir):
-    '''
-    Loads all the .raw files from the given dir
-    :return: list of texts (text = paragraph consisting of one or more sentences according to the original .raw file)
-    '''
-    texts = []
-    for file in os.listdir(dir):
-        print(f'Loading file: {file}')
-        file_path = os.path.join(dir, file)
-        f = open(file_path, "r", encoding="utf8")
-        for line in f:
-            if line != '\n' and line != ' \n' and not line.startswith(' = '):
-                l = line.strip()
-                l = undo_tokenization(l)
-                texts.append(l)
-        f.close()
-    return texts
+def load_texts(file_path):
+    f = open(file_path, "r", encoding="utf8")
+    lines = f.read().splitlines()
+    f.close()
+    return lines
 
 def text_to_sentence_data(texts):
     sentences_data = {}
@@ -327,7 +315,7 @@ def validate_probability(entities_prob, pairs_prob):
 if __name__ == '__main__':
     start_time = time.time()
 
-    texts = load_texts(input_dir) # We load all texts together so we will process all sentences using Spacy all at once (this will speed things up). Reference: https://github.com/explosion/spaCy/discussions/8402
+    texts = load_texts(input_file) # We load all texts together so we will process all sentences using Spacy all at once (this will speed things up). Reference: https://github.com/explosion/spaCy/discussions/8402
     print(f'Total lines extracted (containing one sentence or more): {len(texts)}')
 
     sentences_data = text_to_sentence_data(texts)
