@@ -12,7 +12,6 @@ import math
 import csv
 from itertools import combinations
 import sys
-from sacremoses import MosesDetokenizer
 
 if len(sys.argv) == 1:
     raise ValueError("Path to WikiText-103 dataset missing")
@@ -61,8 +60,6 @@ LAW: Named documents made into laws.
 note: I chose not to add NORP: Nationalities or religious or political groups
 '''
 ENTITIES_TYPES = {'FAC', 'EVENT', 'PERSON', 'ORG', 'PRODUCT', 'GPE', 'WORK_OF_ART', 'LAW', 'LOC'}
-
-detokenizer = MosesDetokenizer()
 
 def load_texts(file_path):
     f = open(file_path, "r", encoding="utf8")
