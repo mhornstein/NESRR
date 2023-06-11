@@ -11,6 +11,7 @@ from torch.utils.data import TensorDataset, DataLoader
 import time
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning) # Disable the warning
+import matplotlib.pyplot as plt
 
 if len(sys.argv) == 1:
     raise ValueError("Path to dataset missing")
@@ -50,6 +51,7 @@ def create_data_loader(tokenizer, X, y, max_length, batch_size):
 
 if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    results = []
 
     # Prepare the data
     df = pd.read_csv(input_file)
@@ -71,7 +73,6 @@ if __name__ == '__main__':
     optimizer = AdamW(model.parameters(), lr=LEARNING_RATE)
 
     for epoch in range(1, NUM_EPOCHS + 1):
-        print(f'epoch: {epoch}/{NUM_EPOCHS}.', end = ' ')
         start_time = time.time()
         model.train()
         total_loss = 0
@@ -103,7 +104,20 @@ if __name__ == '__main__':
                 val_loss += val_outputs.loss.item()
 
         avg_val_loss = val_loss / len(validation_dataloader)
+        epoch_time = time.time() - start_time
 
-        print(f"Train Loss: {avg_train_loss}, Val Loss: {avg_val_loss}. Total epoch time: {time.time() - start_time} seconds.")
+        result_entry = {'epoch': epoch,
+                        'avg_train_loss': avg_train_loss,
+                        'avg_val_loss': avg_val_loss,
+                        'epoch_time': epoch_time}
+        results.append(result_entry)
+        print('\n'.join(key + ': ' + str(value) for key, value in result_entry.items()) + '\n')
 
-    print()
+    results_df = pd.DataFrame(results).set_index('epoch')
+
+    for measurement in results_df.columns:
+        results_df[measurement].plot(title=measurement.replace('_', ' '))
+        plt.savefig(f'{measurement}.jpg')
+        plt.cla()
+
+    results_df.to_csv('results.csv', index=True)
