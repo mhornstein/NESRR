@@ -1,0 +1,1 @@
+MI_TRANSFORMATION = 'ln' # can be either None, minmax, ln, or sqrt
