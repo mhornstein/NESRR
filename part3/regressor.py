@@ -1,5 +1,4 @@
 import pandas as pd
-from config import *
 import sys
 from sklearn.preprocessing import MinMaxScaler
 import numpy as np
@@ -17,6 +16,16 @@ if len(sys.argv) == 1:
     raise ValueError("Path to dataset missing")
 else:
     input_file = sys.argv[1]
+
+MI_TRANSFORMATION = 'ln' # can be either None, minmax, ln, or sqrt
+
+BERT_MODEL = 'bert-base-cased'
+BATCH_SIZE = 32
+
+LEARNING_RATE = 1e-5
+NUM_EPOCHS = 10
+
+####################
 
 def transform_mi(series, transformation_type):
     if transformation_type is None:
