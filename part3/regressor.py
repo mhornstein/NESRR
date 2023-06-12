@@ -103,7 +103,7 @@ if __name__ == '__main__':
         avg_train_loss = total_loss / len(train_dataloader)
 
         model.eval()
-        val_loss = 0
+        val_total_loss = 0
         with torch.no_grad():
             for val_batch in validation_dataloader:
                 val_input_ids = val_batch[0].to(device)
@@ -111,9 +111,9 @@ if __name__ == '__main__':
                 val_targets = val_batch[2].to(device)
 
                 val_outputs = model(val_input_ids, attention_mask=val_attention_mask, labels=val_targets)
-                val_loss += val_outputs.loss.item()
+                val_total_loss += val_outputs.loss.item()
 
-        avg_val_loss = val_loss / len(validation_dataloader)
+        avg_val_loss = val_total_loss / len(validation_dataloader)
         epoch_time = time.time() - start_time
 
         result_entry = {'epoch': epoch,
