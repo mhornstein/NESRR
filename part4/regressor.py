@@ -3,7 +3,7 @@ import sys
 from sklearn.preprocessing import MinMaxScaler
 import numpy as np
 from sklearn.model_selection import train_test_split
-from transformers import BertConfig, BertTokenizerFast, BertForSequenceClassification
+from transformers import BertConfig, BertTokenizerFast, BertForSequenceClassification, AutoModel
 from transformers.optimization import AdamW
 import torch
 from torch.utils.data import TensorDataset, DataLoader
@@ -11,6 +11,7 @@ import time
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning) # Disable the warning
 import matplotlib.pyplot as plt
+import torch.nn as nn
 
 if len(sys.argv) == 1:
     raise ValueError("Path to dataset missing")
@@ -24,6 +25,46 @@ BATCH_SIZE = 32
 
 LEARNING_RATE = 1e-5
 NUM_EPOCHS = 10
+
+BERT_OUTPUT_SHAPE = 768
+
+class BERT_Regressor(nn.Module):
+
+    def __init__(self, input_dim, hidden_layers_config = [512, None, 128, None]):
+        '''
+        :param input_dim: the input dimension of the network
+        :param hidden_layers_config: indicates the hidden layers configuration of the network. \
+                                     its format: [hidden_dim_1, dropout_rate_1, hidden_dim_2, dropout_rate_2, ...]. \
+                                     for no dropout layer, use None value.
+        '''
+        super(BERT_Regressor, self).__init__()
+        layers = self.create_model_layers(input_dim, hidden_layers_config, 1)
+        self.model = nn.Sequential(*layers)
+
+    def create_model_layers(self, input_dim, hidden_config_dims, output_dim):
+        layers = []
+
+        prev_dim = input_dim
+        num_layers = len(hidden_config_dims) // 2  # Each layer has a dim and dropout rate
+
+        for i in range(num_layers):
+            dim = hidden_config_dims[i * 2]
+            dropout_rate = hidden_config_dims[i * 2 + 1]
+
+            layers.append(nn.Linear(prev_dim, dim))
+            layers.append(nn.ReLU())
+
+            if dropout_rate is not None:
+                layers.append(nn.Dropout(dropout_rate))
+
+            prev_dim = dim
+
+        layers.append(nn.Linear(prev_dim, output_dim))
+
+        return layers
+
+    def forward(self, x):
+        return self.model(x)
 
 ####################
 
@@ -46,14 +87,16 @@ def transform_mi(series, transformation_type):
         scaled_series = pd.Series(scaled_data.flatten())
     return scaled_series
 
-def create_data_loader(tokenizer, X, y, max_length, batch_size):
-    tokens = tokenizer.batch_encode_plus(X.tolist(), max_length=max_length, pad_to_max_length=True, truncation=True, return_tensors='pt')
+def create_data_loader(tokenizer, bert_model, X, y, max_length, batch_size):
+    encoded_inputs = tokenizer(X.tolist(), padding=True, truncation=True, return_tensors="pt").to(device)
 
-    ids = tokens['input_ids']
-    mask = tokens['attention_mask']
+    with torch.no_grad():
+        outputs = bert_model(**encoded_inputs)
+
+    embeddings = outputs.last_hidden_state[:, 0, :]
     y_tensor = torch.tensor(y.values).unsqueeze(1)
 
-    dataset = TensorDataset(ids, mask, y_tensor)
+    dataset = TensorDataset(embeddings, y_tensor)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
     return dataloader
@@ -69,16 +112,18 @@ if __name__ == '__main__':
 
     X_train, X_val, y_train, y_val = train_test_split(df['masked_sent'], df['mi_score'], random_state=42, test_size=0.3)
 
+    bert_model = AutoModel.from_pretrained(BERT_MODEL).to(device)
     tokenizer = BertTokenizerFast.from_pretrained(BERT_MODEL)
-    train_dataloader = create_data_loader(tokenizer, X_train, y_train, max_length, BATCH_SIZE)
-    validation_dataloader = create_data_loader(tokenizer, X_val, y_val, max_length, BATCH_SIZE)
+
+    train_dataloader = create_data_loader(tokenizer, bert_model, X_train, y_train, max_length, BATCH_SIZE)
+    validation_dataloader = create_data_loader(tokenizer, bert_model, X_val, y_val, max_length, BATCH_SIZE)
 
     # Preparing the model
-    config = BertConfig.from_pretrained(BERT_MODEL, num_labels=1)  # Set num_labels=1 for regression
-    model = BertForSequenceClassification(config)
+    model = BERT_Regressor(input_dim=BERT_OUTPUT_SHAPE)
     model.to(device)
 
     optimizer = AdamW(model.parameters(), lr=LEARNING_RATE)
+    criterion = nn.MSELoss()
 
     results = []
 
@@ -87,14 +132,13 @@ if __name__ == '__main__':
         model.train()
         total_loss = 0
         for batch in train_dataloader:
-            input_ids = batch[0].to(device)
-            attention_mask = batch[1].to(device)
-            targets = batch[2].to(device)
+            embeddings = batch[0].to(device)
+            targets = batch[1].to(device)
 
             optimizer.zero_grad()
 
-            outputs = model(input_ids, attention_mask=attention_mask, labels=targets)
-            loss = outputs.loss
+            outputs = model(embeddings)
+            loss = criterion(outputs, targets)
             total_loss += loss.item()
 
             loss.backward()
@@ -106,12 +150,13 @@ if __name__ == '__main__':
         val_loss = 0
         with torch.no_grad():
             for val_batch in validation_dataloader:
-                val_input_ids = val_batch[0].to(device)
-                val_attention_mask = val_batch[1].to(device)
-                val_targets = val_batch[2].to(device)
+                val_embeddings = batch[0].to(device)
+                val_targets = batch[1].to(device)
 
-                val_outputs = model(val_input_ids, attention_mask=val_attention_mask, labels=val_targets)
-                val_loss += val_outputs.loss.item()
+                val_outputs = model(val_embeddings)
+                loss = criterion(val_outputs, val_targets)
+
+                val_loss += loss.item()
 
         avg_val_loss = val_loss / len(validation_dataloader)
         epoch_time = time.time() - start_time
