@@ -13,6 +13,8 @@ warnings.filterwarnings("ignore", category=FutureWarning) # Disable the warning
 import matplotlib.pyplot as plt
 import torch.nn as nn
 
+REGRESSION_NETWORK_HIDDEN_LAYERS_CONFIG = [512, None, 128, None]
+
 if len(sys.argv) == 1:
     raise ValueError("Path to dataset missing")
 else:
@@ -30,7 +32,7 @@ BERT_OUTPUT_SHAPE = 768
 
 class BERT_Regressor(nn.Module):
 
-    def __init__(self, input_dim, hidden_layers_config = [512, None, 128, None]):
+    def __init__(self, input_dim, hidden_layers_config):
         '''
         :param input_dim: the input dimension of the network
         :param hidden_layers_config: indicates the hidden layers configuration of the network. \
@@ -119,7 +121,7 @@ if __name__ == '__main__':
     validation_dataloader = create_data_loader(tokenizer, bert_model, X_val, y_val, max_length, BATCH_SIZE)
 
     # Preparing the model
-    model = BERT_Regressor(input_dim=BERT_OUTPUT_SHAPE)
+    model = BERT_Regressor(input_dim=BERT_OUTPUT_SHAPE, hidden_layers_config=REGRESSION_NETWORK_HIDDEN_LAYERS_CONFIG)
     model.to(device)
 
     optimizer = AdamW(model.parameters(), lr=LEARNING_RATE)
