@@ -89,14 +89,27 @@ def transform_mi(series, transformation_type):
         scaled_series = pd.Series(scaled_data.flatten())
     return scaled_series
 
-def create_data_loader(tokenizer, bert_model, X, y, max_length, batch_size):
-    encoded_inputs = tokenizer(X.tolist(), padding=True, truncation=True, return_tensors="pt").to(device)
+def create_data_loader(tokenizer, bert_model, X, y, max_length, batch_size): # TODO remove max_length
+    embeddings_list = []
+    y_list = []
 
-    with torch.no_grad():
-        outputs = bert_model(**encoded_inputs)
+    for i in range(0, len(X), batch_size): # we need to create the dataset in batches, otherwise bert will crash
+        batch_X = X[i:i+batch_size]
+        batch_y = y[i:i+batch_size]
 
-    embeddings = outputs.last_hidden_state[:, 0, :]
-    y_tensor = torch.tensor(y.values).unsqueeze(1)
+        encoded_inputs = tokenizer(batch_X.tolist(), padding=True, truncation=True, return_tensors="pt").to(device)
+
+        with torch.no_grad():
+            outputs = bert_model(**encoded_inputs)
+
+        embeddings = outputs.last_hidden_state[:, 0, :]
+        y_tensor = torch.tensor(batch_y.values).unsqueeze(1)
+
+        embeddings_list.append(embeddings)
+        y_list.append(y_tensor)
+
+    embeddings = torch.cat(embeddings_list, dim=0)
+    y_tensor = torch.cat(y_list, dim=0)
 
     dataset = TensorDataset(embeddings, y_tensor)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
@@ -107,6 +120,8 @@ if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Prepare the data
+    start_time = time.time()
+
     df = pd.read_csv(input_file)
     df['mi_score'] = df['mi_score'].astype('float32')
     df['mi_score'] = transform_mi(df['mi_score'], MI_TRANSFORMATION)
@@ -120,6 +135,8 @@ if __name__ == '__main__':
     train_dataloader = create_data_loader(tokenizer, bert_model, X_train, y_train, max_length, BATCH_SIZE)
     validation_dataloader = create_data_loader(tokenizer, bert_model, X_val, y_val, max_length, BATCH_SIZE)
 
+    print(f'Data preparation ended. it took: {time.time() - start_time} seconds')
+
     # Preparing the model
     model = BERT_Regressor(input_dim=BERT_OUTPUT_SHAPE, hidden_layers_config=REGRESSION_NETWORK_HIDDEN_LAYERS_CONFIG)
     model.to(device)
@@ -128,6 +145,8 @@ if __name__ == '__main__':
     criterion = nn.MSELoss()
 
     results = []
+
+    print('Start training...')
 
     for epoch in range(1, NUM_EPOCHS + 1):
         start_time = time.time()
