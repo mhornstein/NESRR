@@ -60,7 +60,6 @@ def create_data_loader(tokenizer, X, y, max_length, batch_size):
 
 if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    results = []
 
     # Prepare the data
     df = pd.read_csv(input_file)
@@ -80,6 +79,8 @@ if __name__ == '__main__':
     model.to(device)
 
     optimizer = AdamW(model.parameters(), lr=LEARNING_RATE)
+
+    results = []
 
     for epoch in range(1, NUM_EPOCHS + 1):
         start_time = time.time()
