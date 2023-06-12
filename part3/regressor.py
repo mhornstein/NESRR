@@ -74,7 +74,7 @@ if __name__ == '__main__':
     validation_dataloader = create_data_loader(tokenizer, X_val, y_val, max_length, BATCH_SIZE)
 
     # Preparing the model
-    config = BertConfig.from_pretrained('bert-base-cased', num_labels=1)  # Set num_labels=1 for regression
+    config = BertConfig.from_pretrained(BERT_MODEL, num_labels=1)  # Set num_labels=1 for regression
     model = BertForSequenceClassification(config)
     model.to(device)
 
