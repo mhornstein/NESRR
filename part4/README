@@ -1,0 +1,33 @@
+The embedding_extractor.py Script
+=================================
+The embedding_extractor.py script loads the dataset generated in part 1 and creates embeddings for the masked sentences.
+The encoding is done using the bert-base-cased model. Each embedding is 768 numbers long, according to the model settings.
+For more information about the model, read read: https://huggingface.co/bert-base-cased
+
+Notes:
+1. The extraction of embeddings for the complete dataset takes a long time (it took me approximately 3 hours).
+2. The generated embedding file is quite large (almost 1.5 GB). Since it is too big, it wasn't loaded to Git LFS.
+It was uploaded to Google Drive instead (see "Script output" section for more details).
+3. You can change the model type (for example, to bert-large-cased) by modifying the BERT_MODEL constant.
+4. The embeddings will be used in part 4 as well as part 5.
+
+How to run the script?
+======================
+In the command prompt, type: python embedding_extractor.py <path to dataset>.
+for example: python embedding_extractor.py C:\Users\User\Documents\data.csv
+
+Script output
+=============
+* The progress will be logged to the console.
+* The embeddings will be written to a file named embeddings.out.
+The first number in each row is the ID of the entry in the dataset. The rest of the row consists of a 768-long embedding of the sentence.
+
+Link to script output
+=====================
+All files can be found at the following link: https://drive.google.com/drive/folders/1ys-lWwy6tsutZiMWa6MXZ3axXu_ln12s?usp=sharing
+The link includes:
+* all_data - contains the data.csv generated in part 1 along with its embeddings.out file.
+* dummy_data - contains the first 100 sentences from the dataset and their embeddings in the files dummy_data.csv and dummy_embeddings.out.
+These files can be used for debugging or low-weight experimentation.
+
+--------------------------------------------------------------------------------------------------------
