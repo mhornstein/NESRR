@@ -91,12 +91,11 @@ if __name__ == '__main__':
             attention_mask = batch[1].to(device)
             targets = batch[2].to(device)
 
-            optimizer.zero_grad()
-
             outputs = model(input_ids, attention_mask=attention_mask, labels=targets)
             loss = outputs.loss
             total_loss += loss.item()
 
+            optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
