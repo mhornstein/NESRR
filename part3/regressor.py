@@ -9,6 +9,7 @@ import torch
 from torch.utils.data import TensorDataset, DataLoader
 import time
 import warnings
+import os
 warnings.filterwarnings("ignore", category=FutureWarning) # Disable the warning
 import matplotlib.pyplot as plt
 
@@ -24,6 +25,11 @@ else:
     input_file = sys.argv[1]
 
 BERT_MODEL = 'bert-base-cased'
+
+OUTPUT_DIR = 'results'
+
+if not os.path.exists(f'./{OUTPUT_DIR}'):
+    os.makedirs(f'{OUTPUT_DIR}')
 
 ####################
 
@@ -126,7 +132,7 @@ if __name__ == '__main__':
 
     for measurement in results_df.columns:
         results_df[measurement].plot(title=measurement.replace('_', ' '))
-        plt.savefig(f'{measurement}.jpg')
+        plt.savefig(f'{OUTPUT_DIR}/{measurement}.jpg')
         plt.cla()
 
-    results_df.to_csv('results.csv', index=True)
+    results_df.to_csv(f'{OUTPUT_DIR}/results.csv', index=True)
