@@ -15,10 +15,11 @@ import torch.nn as nn
 
 REGRESSION_NETWORK_HIDDEN_LAYERS_CONFIG = [512, None, 128, None]
 
-if len(sys.argv) == 1:
+if len(sys.argv) < 3:
     raise ValueError("Path to dataset missing")
 else:
     input_file = sys.argv[1]
+    embeddings_file = sys.argv[2]
 
 MI_TRANSFORMATION = 'ln' # can be either None, minmax, ln, or sqrt
 
@@ -89,55 +90,41 @@ def transform_mi(series, transformation_type):
         scaled_series = pd.Series(scaled_data.flatten())
     return scaled_series
 
-def create_data_loader(tokenizer, bert_model, X, y, max_length, batch_size): # TODO remove max_length
-    embeddings_list = []
-    y_list = []
+def create_embs_mi_df(data_file, embs_file, mi_transformation):
+    # Load input data file
+    df = pd.read_csv(data_file)
+    df['mi_score'] = df['mi_score'].astype('float32') # csv is loaded as an object. for further calculation we must transform it into a float
+    df['mi_score'] = transform_mi(df['mi_score'], mi_transformation)
 
-    for i in range(0, len(X), batch_size): # we need to create the dataset in batches, otherwise bert will crash
-        batch_X = X[i:i+batch_size]
-        batch_y = y[i:i+batch_size]
+    df = df[['sent_id', 'mi_score']]
+    df = df.set_index('sent_id')
 
-        encoded_inputs = tokenizer(batch_X.tolist(), padding=True, truncation=True, return_tensors="pt").to(device)
+    # Load embeddings file
+    embs = pd.read_csv(embs_file, sep=' ', header=None)
+    embs.iloc[:, 1:] = embs.iloc[:, 1:].astype(np.float32)
+    embs = embs.set_index(embs.columns[0])  # set sentence id as the index of the dataframe
 
-        with torch.no_grad():
-            outputs = bert_model(**encoded_inputs)
+    # combine both for a single df
+    df = pd.concat([embs, df], axis=1)
 
-        embeddings = outputs.last_hidden_state[:, 0, :]
-        y_tensor = torch.tensor(batch_y.values).unsqueeze(1)
+    return df
 
-        embeddings_list.append(embeddings)
-        y_list.append(y_tensor)
-
-    embeddings = torch.cat(embeddings_list, dim=0)
-    y_tensor = torch.cat(y_list, dim=0)
-
-    dataset = TensorDataset(embeddings, y_tensor)
+def create_data_loader(X, y, batch_size):
+    X_tensor = torch.tensor(X.values, dtype=torch.float32).to(device)
+    y_tensor = torch.tensor(y.values.reshape(-1, 1), dtype=torch.float32).to(device)
+    dataset = TensorDataset(X_tensor, y_tensor)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
-
     return dataloader
 
 if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Prepare the data
-    start_time = time.time()
+    df = create_embs_mi_df(data_file=input_file, embs_file=embeddings_file, mi_transformation=MI_TRANSFORMATION)
 
-    df = pd.read_csv(input_file)
-    df['mi_score'] = df['mi_score'].astype('float32')
-    df['mi_score'] = transform_mi(df['mi_score'], MI_TRANSFORMATION)
-    max_length = max([len(s.split()) for s in df['masked_sent']])
+    X_train, X_val, y_train, y_val = train_test_split(df.iloc[:, :-1], df['mi_score'], random_state=42, test_size=0.3)
+    train_dataloader = create_data_loader(X_train, y_train, BATCH_SIZE)
+    validation_dataloader = create_data_loader(X_val, y_val, BATCH_SIZE)
 
-    X_train, X_val, y_train, y_val = train_test_split(df['masked_sent'], df['mi_score'], random_state=42, test_size=0.3)
-
-    bert_model = AutoModel.from_pretrained(BERT_MODEL).to(device)
-    tokenizer = BertTokenizerFast.from_pretrained(BERT_MODEL)
-
-    train_dataloader = create_data_loader(tokenizer, bert_model, X_train, y_train, max_length, BATCH_SIZE)
-    validation_dataloader = create_data_loader(tokenizer, bert_model, X_val, y_val, max_length, BATCH_SIZE)
-
-    print(f'Data preparation ended. it took: {time.time() - start_time} seconds')
-
-    # Preparing the model
     model = BERT_Regressor(input_dim=BERT_OUTPUT_SHAPE, hidden_layers_config=REGRESSION_NETWORK_HIDDEN_LAYERS_CONFIG)
     model.to(device)
 
@@ -153,15 +140,14 @@ if __name__ == '__main__':
         model.train()
         total_loss = 0
         for batch in train_dataloader:
-            embeddings = batch[0].to(device)
-            targets = batch[1].to(device)
-
-            optimizer.zero_grad()
+            embeddings = batch[0]
+            targets = batch[1]
 
             outputs = model(embeddings)
             loss = criterion(outputs, targets)
             total_loss += loss.item()
 
+            optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
@@ -171,8 +157,8 @@ if __name__ == '__main__':
         val_total_loss = 0
         with torch.no_grad():
             for val_batch in validation_dataloader:
-                val_embeddings = batch[0].to(device)
-                val_targets = batch[1].to(device)
+                val_embeddings = batch[0]
+                val_targets = batch[1]
 
                 val_outputs = model(val_embeddings)
                 val_loss = criterion(val_outputs, val_targets)
