@@ -15,19 +15,17 @@ import os
 
 REGRESSION_NETWORK_HIDDEN_LAYERS_CONFIG = [512, None, 128, None]
 
+BATCH_SIZE = 32
+LEARNING_RATE = 1e-5
+NUM_EPOCHS = 10
+
+MI_TRANSFORMATION = 'ln' # can be either None, minmax, ln, or sqrt
+
 if len(sys.argv) < 3:
     raise ValueError("Path to dataset missing")
 else:
     input_file = sys.argv[1]
     embeddings_file = sys.argv[2]
-
-MI_TRANSFORMATION = 'ln' # can be either None, minmax, ln, or sqrt
-
-BERT_MODEL = 'bert-base-cased'
-BATCH_SIZE = 32
-
-LEARNING_RATE = 1e-5
-NUM_EPOCHS = 10
 
 BERT_OUTPUT_SHAPE = 768
 
