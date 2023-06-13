@@ -8,8 +8,7 @@ Notes:
 1. The extraction of embeddings for the complete dataset takes a long time (it took me approximately 3 hours).
 2. The generated embedding file is quite large (almost 1.5 GB). Since it is too big, it wasn't loaded to Git LFS.
 It was uploaded to Google Drive instead (see "Script output" section for more details).
-3. You can change the model type (for example, to bert-large-cased) by modifying the BERT_MODEL constant.
-4. The embeddings will be used in part 4 as well as part 5.
+3. The embeddings will be used in part 4 as well as part 5.
 
 How to run the script?
 ======================
@@ -30,4 +29,53 @@ The link includes:
 * dummy_data - contains the first 100 sentences from the dataset and their embeddings in the files dummy_data.csv and dummy_embeddings.out.
 These files can be used for debugging or low-weight experimentation.
 
+Script configurations
+=====================
+You can change the model type (for example, to bert-large-cased) by modifying the BERT_MODEL constant.
+
 --------------------------------------------------------------------------------------------------------
+
+The regressor.py Script
+=======================
+The regressor.py script is designed to train a deep network architecture for the purpose of performing regression.
+Its goal is to predict the mutual information (MI) between two entities in a masked sentence.
+To accomplish this task, the script requires two inputs: the dataset generated in part 1 and the pre-prepared embeddings of the sentences,
+which are obtained from the output of the embedding_extractor.py script.
+
+How to run the script?
+======================
+In the command prompt, type: python regressor.py <path to dataset> <path to embeddings file>
+for example: python regressor.py C:\Users\User\Documents\data.csv C:\Users\User\Documents\embeddings.out
+
+Script output
+=============
+* The progress will be logged to the console.
+* The "result" directory will be generated to store the results, which includes the following files:
+- avg_train_loss.jpg: a plot illustrating the loss of the training set over the epochs.
+- avg_val_loss.jpg: a plot illustrating the loss of the validation set over the epochs.
+- epoch_time.jpg: a plot illustrating the duration of each epoch.
+- results.csv: a CSV file containing the aforementioned information in a textual format.
+
+More configurations
+===================
+* Network configuration: The network configuration can be customized by modifying the REGRESSION_NETWORK_HIDDEN_LAYERS_CONFIG constant.
+This constant is a list that specifies the configuration of the hidden layers in the network.
+The format of the list is as follows: [hidden_dim_1, dropout_rate_1, hidden_dim_2, dropout_rate_2, ...].
+To indicate the absence of a dropout layer, you can use the value None.
+For example, [512, 0.1, 128, None] represents a network with a hidden dense layer of size 512,
+followed by a dropout layer with a rate of 0.1, and then another dense layer of size 128 without a dropout layer afterwards.
+Note: The network has an input dimension of 768, following the BERT embedding configuration. As this is a regression task, the network's output dimension is 1.
+Hence, these dimensions cannot be modified or adjusted as they are predetermined and fixed for the network in this regression task.
+* Batch size, learning rate, and number of epochs can be adjusted by updating the corresponding constants: BATCH_SIZE, LEARNING_RATE, and NUM_EPOCHS, respectively.
+* You can modify the MI_TRANSFORMATION constant to apply a transformation to the MI score before training the network.
+This transformation can be one of the following options: minmax, ln, sqrt, or None (for no transformation).
+
+--------------------------------------------------------------------------------------------------------
+
+Environment
+===========
+The scripts were tested in the following config:
+OS: Windows
+Python version: 3.10.8
+Transformers version: 4.24.0
+Torch version: 1.13.0+cpu
