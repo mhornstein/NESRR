@@ -3,7 +3,6 @@ import sys
 from sklearn.preprocessing import MinMaxScaler
 import numpy as np
 from sklearn.model_selection import train_test_split
-from transformers import BertTokenizerFast, AutoModel
 from transformers.optimization import AdamW
 import torch
 from torch.utils.data import TensorDataset, DataLoader
