@@ -11,6 +11,7 @@ import warnings
 warnings.filterwarnings("ignore", category=FutureWarning) # Disable the warning
 import matplotlib.pyplot as plt
 import torch.nn as nn
+import os
 
 REGRESSION_NETWORK_HIDDEN_LAYERS_CONFIG = [512, None, 128, None]
 
@@ -29,6 +30,13 @@ LEARNING_RATE = 1e-5
 NUM_EPOCHS = 10
 
 BERT_OUTPUT_SHAPE = 768
+
+OUTPUT_DIR = 'results'
+
+if not os.path.exists(f'./{OUTPUT_DIR}'):
+    os.makedirs(f'{OUTPUT_DIR}')
+
+####################
 
 class BERT_Regressor(nn.Module):
 
@@ -178,7 +186,7 @@ if __name__ == '__main__':
 
     for measurement in results_df.columns:
         results_df[measurement].plot(title=measurement.replace('_', ' '))
-        plt.savefig(f'{measurement}.jpg')
+        plt.savefig(f'{OUTPUT_DIR}/{measurement}.jpg')
         plt.cla()
 
-    results_df.to_csv('results.csv', index=True)
+    results_df.to_csv(f'{OUTPUT_DIR}/results.csv', index=True)
