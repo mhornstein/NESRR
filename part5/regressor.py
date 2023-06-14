@@ -95,13 +95,15 @@ def transform_mi(series, transformation_type):
         scaled_series = pd.Series(scaled_data.flatten())
     return scaled_series
 
-def create_embs_mi_df(data_file, embs_file, mi_transformation):
+def create_df(data_file, embs_file, mi_transformation):
     # Load input data file
     df = pd.read_csv(data_file)
     df['mi_score'] = df['mi_score'].astype('float32') # csv is loaded as an object. for further calculation we must transform it into a float
     df['mi_score'] = transform_mi(df['mi_score'], mi_transformation)
 
-    df = df[['sent_id', 'mi_score']]
+    df = df[['sent_id', 'label1', 'label2', 'mi_score']]
+    df_encoded = pd.get_dummies(df, columns=['label1', 'label2'], dtype=int)
+    df = pd.concat([df_encoded, df[['label1', 'label2']]], axis=1)
     df = df.set_index('sent_id')
 
     # Load embeddings file
@@ -112,19 +114,28 @@ def create_embs_mi_df(data_file, embs_file, mi_transformation):
     # combine both for a single df
     df = pd.concat([embs, df], axis=1)
 
+    df = df[[col for col in df.columns if col != 'mi_score'] + ['mi_score']] # move mi to be the last column
+
     return df
 
 def create_data_loader(X, y, batch_size):
-    X_tensor = torch.tensor(X.values, dtype=torch.float32).to(device)
-    y_tensor = torch.tensor(y.values.reshape(-1, 1), dtype=torch.float32).to(device)
-    dataset = TensorDataset(X_tensor, y_tensor)
+    embs_tensor = torch.tensor(X.iloc[:, :768].values, dtype=torch.float32).to(device)
+    label1_tensor = torch.tensor(X.filter(regex='^label1_').values, dtype=torch.int).to(device)
+    label2_tensor = torch.tensor(X.filter(regex='^label2_').values, dtype=torch.int).to(device)
+    mi_tensor = torch.tensor(y.values.reshape(-1, 1), dtype=torch.float32).to(device)
+    dataset = TensorDataset(embs_tensor, label1_tensor, label2_tensor, mi_tensor)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
     return dataloader
 
 if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    df = create_embs_mi_df(data_file=input_file, embs_file=embeddings_file, mi_transformation=MI_TRANSFORMATION)
+    df = create_df(data_file=input_file, embs_file=embeddings_file, mi_transformation=MI_TRANSFORMATION)
+
+    label1_values = set(df['label1'].unique())
+    label2_values = set(df['label2'].unique())
+
+    df = df.drop(['label1', 'label2'], axis=1)  # Drop the original labels1 and labels2 as we do not need them anymore
 
     X_train, X_val, y_train, y_val = train_test_split(df.iloc[:, :-1], df['mi_score'], random_state=42, test_size=0.3)
     train_dataloader = create_data_loader(X_train, y_train, BATCH_SIZE)
