@@ -5,6 +5,7 @@ This utility class provides common functions that are shared among all regressor
 from sklearn.preprocessing import MinMaxScaler
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
 def transform_mi(series, transformation_type):
     if transformation_type is None:
@@ -24,3 +25,13 @@ def transform_mi(series, transformation_type):
             raise ValueError(f'Unknown MI transformation: {transformation_type}')
         scaled_series = pd.Series(scaled_data.flatten())
     return scaled_series
+
+def results_to_files(results_dict, output_dir):
+    results_df = pd.DataFrame(results_dict).set_index('epoch')
+
+    for measurement in results_df.columns:
+        results_df[measurement].plot(title=measurement.replace('_', ' '))
+        plt.savefig(f'{output_dir}/{measurement}.jpg')
+        plt.cla()
+
+    results_df.to_csv(f'{output_dir}/results.csv', index=True)

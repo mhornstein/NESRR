@@ -7,7 +7,6 @@ import time
 import warnings
 import os
 warnings.filterwarnings("ignore", category=FutureWarning) # Disable the warning
-import matplotlib.pyplot as plt
 import sys
 
 sys.path.append('../')
@@ -111,11 +110,4 @@ if __name__ == '__main__':
         results.append(result_entry)
         print('\n'.join(key + ': ' + str(value) for key, value in result_entry.items()) + '\n')
 
-    results_df = pd.DataFrame(results).set_index('epoch')
-
-    for measurement in results_df.columns:
-        results_df[measurement].plot(title=measurement.replace('_', ' '))
-        plt.savefig(f'{OUTPUT_DIR}/{measurement}.jpg')
-        plt.cla()
-
-    results_df.to_csv(f'{OUTPUT_DIR}/results.csv', index=True)
+    results_to_files(results_dict=results, output_dir=OUTPUT_DIR)
