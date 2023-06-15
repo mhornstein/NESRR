@@ -5,7 +5,6 @@ from torch.utils.data import TensorDataset, DataLoader
 import time
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning) # Disable the warning
-import torch.nn as nn
 import os
 from sklearn.preprocessing import LabelEncoder
 import sys

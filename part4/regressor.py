@@ -5,7 +5,6 @@ from torch.utils.data import TensorDataset, DataLoader
 import time
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning) # Disable the warning
-import torch.nn as nn
 import os
 import sys
 
@@ -45,30 +44,7 @@ class BERT_Regressor(nn.Module):
                                      for no dropout layer, use None value.
         '''
         super(BERT_Regressor, self).__init__()
-        layers = self.create_model_layers(input_dim, hidden_layers_config, 1)
-        self.model = nn.Sequential(*layers)
-
-    def create_model_layers(self, input_dim, hidden_config_dims, output_dim):
-        layers = []
-
-        prev_dim = input_dim
-        num_layers = len(hidden_config_dims) // 2  # Each layer has a dim and dropout rate
-
-        for i in range(num_layers):
-            dim = hidden_config_dims[i * 2]
-            dropout_rate = hidden_config_dims[i * 2 + 1]
-
-            layers.append(nn.Linear(prev_dim, dim))
-            layers.append(nn.ReLU())
-
-            if dropout_rate is not None:
-                layers.append(nn.Dropout(dropout_rate))
-
-            prev_dim = dim
-
-        layers.append(nn.Linear(prev_dim, output_dim))
-
-        return layers
+        self.model = create_network(input_dim, hidden_layers_config, 1)
 
     def forward(self, x):
         return self.model(x)
