@@ -1,7 +1,3 @@
-import pandas as pd
-import sys
-from sklearn.preprocessing import MinMaxScaler
-import numpy as np
 from sklearn.model_selection import train_test_split
 from transformers import BertConfig, BertTokenizerFast, BertForSequenceClassification
 from transformers.optimization import AdamW
@@ -12,6 +8,10 @@ import warnings
 import os
 warnings.filterwarnings("ignore", category=FutureWarning) # Disable the warning
 import matplotlib.pyplot as plt
+import sys
+
+sys.path.append('../')
+from common.regressor_util import *
 
 BATCH_SIZE = 32
 LEARNING_RATE = 1e-5
@@ -32,25 +32,6 @@ if not os.path.exists(f'./{OUTPUT_DIR}'):
     os.makedirs(f'{OUTPUT_DIR}')
 
 ####################
-
-def transform_mi(series, transformation_type):
-    if transformation_type is None:
-        scaled_series = series
-    else:
-        scaler = MinMaxScaler(feature_range=(1, 100)) # we start all scaling with minmax scaling
-        scaled_data = scaler.fit_transform(series.values.reshape(-1, 1))
-        if transformation_type == 'minmax':
-            pass
-        elif transformation_type == 'sqrt':
-            scaled_data = np.sqrt(scaled_data)
-        elif transformation_type == 'ln':
-            scaled_data = np.log(scaled_data)
-        elif transformation_type == 'log10':
-            scaled_data = np.log10(scaled_data)
-        else:
-            raise ValueError(f'Unknown MI transformation: {transformation_type}')
-        scaled_series = pd.Series(scaled_data.flatten())
-    return scaled_series
 
 def create_df(data_file, mi_transformation):
     df = pd.read_csv(data_file)
