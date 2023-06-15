@@ -38,41 +38,35 @@ if not os.path.exists(f'./{OUTPUT_DIR}'):
 
 class BERT_Regressor(nn.Module):
 
-    def __init__(self, input_dim, hidden_layers_config):
-        '''
-        :param input_dim: the input dimension of the network
-        :param hidden_layers_config: indicates the hidden layers configuration of the network. \
-                                     its format: [hidden_dim_1, dropout_rate_1, hidden_dim_2, dropout_rate_2, ...]. \
-                                     for no dropout layer, use None value.
-        '''
+    def __init__(self, input_dim, num_labels1, num_labels2):
         super(BERT_Regressor, self).__init__()
-        layers = self.create_model_layers(input_dim, hidden_layers_config, 1)
-        self.model = nn.Sequential(*layers)
+        self.input_dim = input_dim
+        self.num_labels1 = num_labels1
+        self.num_labels2 = num_labels2
+        num_labels = self.num_labels1 + self.num_labels2
 
-    def create_model_layers(self, input_dim, hidden_config_dims, output_dim):
-        layers = []
+        # classification layer
+        self.fc1 = nn.Linear(self.input_dim, 64)
+        self.fc2 = nn.Linear(64, num_labels)
 
-        prev_dim = input_dim
-        num_layers = len(hidden_config_dims) // 2  # Each layer has a dim and dropout rate
+        # regression layer
+        self.regression_layer = nn.Linear(num_labels + self.input_dim, 1)
 
-        for i in range(num_layers):
-            dim = hidden_config_dims[i * 2]
-            dropout_rate = hidden_config_dims[i * 2 + 1]
+    def forward(self, embs):
+        # Step 1: classification
+        x = self.fc1(embs)
+        x = torch.relu(x)
+        x = self.fc2(x)
 
-            layers.append(nn.Linear(prev_dim, dim))
-            layers.append(nn.ReLU())
+        label1_classification_output = x[:, :self.num_labels1]
+        label2_classification_output = x[:, self.num_labels1:]
 
-            if dropout_rate is not None:
-                layers.append(nn.Dropout(dropout_rate))
+        # Step 2: regression with the classification output
+        combined_input = torch.cat((label1_classification_output, label2_classification_output, embs), dim=1)
+        regression_output = self.regression_layer(combined_input)
 
-            prev_dim = dim
-
-        layers.append(nn.Linear(prev_dim, output_dim))
-
-        return layers
-
-    def forward(self, x):
-        return self.model(x)
+        # Step 3: return the results
+        return label1_classification_output, label2_classification_output, regression_output
 
 ####################
 
@@ -141,11 +135,12 @@ if __name__ == '__main__':
     train_dataloader = create_data_loader(X_train, y_train, BATCH_SIZE)
     validation_dataloader = create_data_loader(X_val, y_val, BATCH_SIZE)
 
-    model = BERT_Regressor(input_dim=BERT_OUTPUT_SHAPE, hidden_layers_config=REGRESSION_NETWORK_HIDDEN_LAYERS_CONFIG)
+    model = BERT_Regressor(input_dim=BERT_OUTPUT_SHAPE, num_labels1=len(label1_values), num_labels2=len(label2_values))
     model.to(device)
 
     optimizer = AdamW(model.parameters(), lr=LEARNING_RATE)
-    criterion = nn.MSELoss()
+    classification_criterion = nn.CrossEntropyLoss()
+    regression_criterion = nn.MSELoss()
 
     results = []
 
@@ -156,11 +151,17 @@ if __name__ == '__main__':
         model.train()
         total_loss = 0
         for batch in train_dataloader:
-            embeddings = batch[0]
-            targets = batch[1]
+            embeddings, labels1, labels2, mi_score = batch
 
-            outputs = model(embeddings)
-            loss = criterion(outputs, targets)
+            label1_classification_output, label2_classification_output, regression_output = model(embeddings)
+
+            labels1_indices = torch.argmax(labels1, dim=1)
+            label1_loss = classification_criterion(label1_classification_output, labels1_indices)
+            labels2_indices = torch.argmax(labels2, dim=1)
+            label2_loss = classification_criterion(label2_classification_output, labels2_indices)
+            regression_loss = regression_criterion(regression_output, mi_score)
+            loss = label1_loss + label2_loss + regression_loss
+
             total_loss += loss.item()
 
             optimizer.zero_grad()
@@ -173,11 +174,16 @@ if __name__ == '__main__':
         val_total_loss = 0
         with torch.no_grad():
             for val_batch in validation_dataloader:
-                val_embeddings = batch[0]
-                val_targets = batch[1]
+                val_embeddings, val_labels1, val_labels2, val_mi_score = batch
 
-                val_outputs = model(val_embeddings)
-                val_loss = criterion(val_outputs, val_targets)
+                val_label1_classification_output, val_label2_classification_output, val_regression_output = model(val_embeddings)
+
+                val_labels1_indices = torch.argmax(val_labels1, dim=1)
+                val_label1_loss = classification_criterion(val_label1_classification_output, val_labels1_indices)
+                val_labels2_indices = torch.argmax(val_labels2, dim=1)
+                val_label2_loss = classification_criterion(val_label2_classification_output, val_labels2_indices)
+                val_regression_loss = regression_criterion(val_regression_output, val_mi_score)
+                val_loss = val_label1_loss + val_label2_loss + val_regression_loss
 
                 val_total_loss += val_loss.item()
 
