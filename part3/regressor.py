@@ -16,7 +16,7 @@ BATCH_SIZE = 32
 LEARNING_RATE = 1e-5
 NUM_EPOCHS = 10
 
-MI_TRANSFORMATION = 'ln' # can be either None, minmax, ln, or sqrt
+MI_TRANSFORMATION = 'ln'  # can be either None, or: 'sqrt', 'ln', 'log10'
 
 if len(sys.argv) == 1:
     raise ValueError("Path to dataset missing")
