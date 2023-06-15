@@ -12,6 +12,9 @@ import sys
 sys.path.append('../')
 from common.regressor_util import *
 
+CLASSIFICATION_NETWORK_HIDDEN_LAYERS_CONFIG = [64, None] # Other example: [20, None, 9, 0.2]
+REGRESSION_NETWORK_HIDDEN_LAYERS_CONFIG = [] # No hidden layers. Other examples: [512, 0.1, 128, None]
+
 BATCH_SIZE = 32
 LEARNING_RATE = 1e-5
 NUM_EPOCHS = 10
@@ -37,7 +40,7 @@ LABEL_ENCODER = LabelEncoder()
 
 class BERT_Regressor(nn.Module):
 
-    def __init__(self, input_dim, num_labels1, num_labels2):
+    def __init__(self, input_dim, num_labels1, num_labels2, classification_network_hidden_layers_config, regression_network_hidden_layers_config):
         super(BERT_Regressor, self).__init__()
         self.input_dim = input_dim
         self.num_labels1 = num_labels1
@@ -45,24 +48,23 @@ class BERT_Regressor(nn.Module):
         num_labels = self.num_labels1 + self.num_labels2
 
         # classification layer
-        self.fc1 = nn.Linear(self.input_dim, 64)
-        self.fc2 = nn.Linear(64, num_labels)
-
-        # regression layer
-        self.regression_layer = nn.Linear(num_labels + self.input_dim, 1)
+        self.classification_network = create_network(input_dim=self.input_dim,
+                                                     hidden_layers_config=classification_network_hidden_layers_config,
+                                                     output_dim=num_labels)
+        self.regression_network = create_network(input_dim=num_labels + self.input_dim,
+                                                 hidden_layers_config=regression_network_hidden_layers_config,
+                                                 output_dim=1)
 
     def forward(self, embs):
         # Step 1: classification
-        x = self.fc1(embs)
-        x = torch.relu(x)
-        x = self.fc2(x)
+        x = self.classification_network(embs)
 
         label1_classification_output = x[:, :self.num_labels1]
         label2_classification_output = x[:, self.num_labels1:]
 
         # Step 2: regression with the classification output
         combined_input = torch.cat((label1_classification_output, label2_classification_output, embs), dim=1)
-        regression_output = self.regression_layer(combined_input)
+        regression_output = self.regression_network(combined_input)
 
         # Step 3: return the results
         return label1_classification_output, label2_classification_output, regression_output
@@ -120,7 +122,11 @@ if __name__ == '__main__':
 
     label1_values = set(df['label1'].unique())
     label2_values = set(df['label2'].unique())
-    model = BERT_Regressor(input_dim=BERT_OUTPUT_SHAPE, num_labels1=len(label1_values), num_labels2=len(label2_values))
+    model = BERT_Regressor(input_dim=BERT_OUTPUT_SHAPE,
+                           num_labels1=len(label1_values),
+                           num_labels2=len(label2_values),
+                           classification_network_hidden_layers_config=CLASSIFICATION_NETWORK_HIDDEN_LAYERS_CONFIG,
+                           regression_network_hidden_layers_config=REGRESSION_NETWORK_HIDDEN_LAYERS_CONFIG)
     model.to(device)
 
     optimizer = AdamW(model.parameters(), lr=LEARNING_RATE)
