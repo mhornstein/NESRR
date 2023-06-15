@@ -14,8 +14,6 @@ import torch.nn as nn
 import os
 from sklearn.preprocessing import LabelEncoder
 
-REGRESSION_NETWORK_HIDDEN_LAYERS_CONFIG = [512, None, 128, None]
-
 BATCH_SIZE = 32
 LEARNING_RATE = 1e-5
 NUM_EPOCHS = 10
@@ -105,7 +103,6 @@ def encode_column(df, column_name, encoder):
 def create_df(data_file, embs_file, mi_transformation):
     # Load input data file
     df = pd.read_csv(data_file)
-    df['mi_score'] = df['mi_score'].astype('float32') # csv is loaded as an object. for further calculation we must transform it into a float
     df['mi_score'] = transform_mi(df['mi_score'], mi_transformation)
 
     df = df[['sent_id', 'label1', 'label2', 'mi_score']]
@@ -115,7 +112,6 @@ def create_df(data_file, embs_file, mi_transformation):
 
     # Load embeddings file
     embs = pd.read_csv(embs_file, sep=' ', header=None)
-    embs.iloc[:, 1:] = embs.iloc[:, 1:].astype(np.float32)
     embs = embs.set_index(embs.columns[0])  # set sentence id as the index of the dataframe
 
     # combine both for a single df
