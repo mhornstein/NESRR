@@ -16,7 +16,7 @@ BATCH_SIZE = 32
 LEARNING_RATE = 1e-5
 NUM_EPOCHS = 10
 
-MI_TRANSFORMATION = 'ln'  # can be either None, or: 'sqrt', 'ln', 'log10'
+MI_TRANSFORMATION = None  # can be either None, or: 'sqrt', 'ln', 'log10'
 
 if len(sys.argv) == 1:
     raise ValueError("Path to dataset missing")
@@ -35,6 +35,7 @@ if not os.path.exists(f'./{OUTPUT_DIR}'):
 def create_df(data_file, mi_transformation):
     df = pd.read_csv(data_file)
     df['mi_score'] = transform_mi(df['mi_score'], mi_transformation)
+    df = df.set_index('sent_id')
     return df
 
 def create_data_loader(tokenizer, X, y, max_length, batch_size):
