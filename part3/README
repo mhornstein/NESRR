@@ -1,7 +1,7 @@
 The regressor.py Script
 =======================
 The regressor.py script is designed to train BERT for the purpose of performing regression.
-Its goal is to predict the mutual information (MI) between two entities in a masked sentence.
+Its goal is to predict the mutual information (MI) between two masked entities in a sentence.
 To accomplish this task, the script makes use of the dataset generated in part 1.
 
 How to run the script?
@@ -22,7 +22,7 @@ More configurations
 ===================
 * Batch size, learning rate, and number of epochs can be adjusted by updating the corresponding constants: BATCH_SIZE, LEARNING_RATE, and NUM_EPOCHS, respectively.
 * You can modify the MI_TRANSFORMATION constant to apply a transformation to the MI score before training the network.
-This transformation can be one of the following options: minmax, ln, sqrt, or None (for no transformation).
+This transformation can be one of the following options: 'sqrt', 'ln', 'log10', or None (for no transformation).
 * You can change the model type (for example, to bert-large-cased) by modifying the BERT_MODEL constant.
 
 --------------------------------------------------------------------------------------------------------
