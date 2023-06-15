@@ -101,7 +101,6 @@ def create_df(data_file, embs_file, mi_transformation):
     '''
     # Load input data file
     df = pd.read_csv(data_file)
-    df['mi_score'] = df['mi_score'].astype('float32') # csv is loaded as an object. for further calculation we must transform it into a float
     df['mi_score'] = transform_mi(df['mi_score'], mi_transformation)
 
     df = df[['sent_id', 'mi_score']]
@@ -109,7 +108,6 @@ def create_df(data_file, embs_file, mi_transformation):
 
     # Load embeddings file
     embs = pd.read_csv(embs_file, sep=' ', header=None)
-    embs.iloc[:, 1:] = embs.iloc[:, 1:].astype(np.float32)
     embs = embs.set_index(embs.columns[0])  # set sentence id as the index of the dataframe
 
     # combine both for a single df
