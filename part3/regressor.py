@@ -54,7 +54,6 @@ def transform_mi(series, transformation_type):
 
 def create_df(data_file, mi_transformation):
     df = pd.read_csv(data_file)
-    df['mi_score'] = df['mi_score'].astype('float32')
     df['mi_score'] = transform_mi(df['mi_score'], mi_transformation)
     return df
 
@@ -63,7 +62,7 @@ def create_data_loader(tokenizer, X, y, max_length, batch_size):
 
     ids = tokens['input_ids']
     mask = tokens['attention_mask']
-    y_tensor = torch.tensor(y.values).unsqueeze(1)
+    y_tensor = torch.tensor(y.values.reshape(-1, 1), dtype=torch.float32).to(device)
 
     dataset = TensorDataset(ids, mask, y_tensor)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
@@ -73,12 +72,12 @@ def create_data_loader(tokenizer, X, y, max_length, batch_size):
 if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+    # Preparing the data
     df = create_df(input_file, MI_TRANSFORMATION)
-    max_length = max([len(s.split()) for s in df['masked_sent']])
-
     X_train, X_val, y_train, y_val = train_test_split(df['masked_sent'], df['mi_score'], random_state=42, test_size=0.3)
 
     tokenizer = BertTokenizerFast.from_pretrained(BERT_MODEL)
+    max_length = max([len(s.split()) for s in df['masked_sent']])
     train_dataloader = create_data_loader(tokenizer, X_train, y_train, max_length, BATCH_SIZE)
     validation_dataloader = create_data_loader(tokenizer, X_val, y_val, max_length, BATCH_SIZE)
 
