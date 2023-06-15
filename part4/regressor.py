@@ -95,7 +95,10 @@ def transform_mi(series, transformation_type):
         scaled_series = pd.Series(scaled_data.flatten())
     return scaled_series
 
-def create_embs_mi_df(data_file, embs_file, mi_transformation):
+def create_df(data_file, embs_file, mi_transformation):
+    '''
+    Creates a dataframe that consists of the sentences embeddings and their respective (transformed) mi_score
+    '''
     # Load input data file
     df = pd.read_csv(data_file)
     df['mi_score'] = df['mi_score'].astype('float32') # csv is loaded as an object. for further calculation we must transform it into a float
@@ -124,7 +127,7 @@ def create_data_loader(X, y, batch_size):
 if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    df = create_embs_mi_df(data_file=input_file, embs_file=embeddings_file, mi_transformation=MI_TRANSFORMATION)
+    df = create_df(data_file=input_file, embs_file=embeddings_file, mi_transformation=MI_TRANSFORMATION)
 
     X_train, X_val, y_train, y_val = train_test_split(df.iloc[:, :-1], df['mi_score'], random_state=42, test_size=0.3)
     train_dataloader = create_data_loader(X_train, y_train, BATCH_SIZE)
