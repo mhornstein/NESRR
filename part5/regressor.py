@@ -12,6 +12,7 @@ warnings.filterwarnings("ignore", category=FutureWarning) # Disable the warning
 import matplotlib.pyplot as plt
 import torch.nn as nn
 import os
+from sklearn.preprocessing import LabelEncoder
 
 REGRESSION_NETWORK_HIDDEN_LAYERS_CONFIG = [512, None, 128, None]
 
@@ -33,6 +34,8 @@ OUTPUT_DIR = 'results'
 
 if not os.path.exists(f'./{OUTPUT_DIR}'):
     os.makedirs(f'{OUTPUT_DIR}')
+
+LABEL_ENCODER = LabelEncoder()
 
 ####################
 
@@ -89,6 +92,16 @@ def transform_mi(series, transformation_type):
         scaled_series = pd.Series(scaled_data.flatten())
     return scaled_series
 
+def encode_column(df, column_name, encoder):
+    '''
+    This function converts the labels in a specified column of a DataFrame to ordinal numbers.
+    The categorical labels are transformed into sequential integers representing an ordinal positions.
+    :param df: the required dataframe
+    :param column_name: the column for which the labels
+    '''
+    encoder.fit(df[column_name])
+    df[column_name] = encoder.transform(df[column_name])
+
 def create_df(data_file, embs_file, mi_transformation):
     # Load input data file
     df = pd.read_csv(data_file)
@@ -96,8 +109,8 @@ def create_df(data_file, embs_file, mi_transformation):
     df['mi_score'] = transform_mi(df['mi_score'], mi_transformation)
 
     df = df[['sent_id', 'label1', 'label2', 'mi_score']]
-    df_encoded = pd.get_dummies(df, columns=['label1', 'label2'], dtype=int)
-    df = pd.concat([df_encoded, df[['label1', 'label2']]], axis=1)
+    encode_column(df, 'label1', LABEL_ENCODER)
+    encode_column(df, 'label2', LABEL_ENCODER)
     df = df.set_index('sent_id')
 
     # Load embeddings file
@@ -114,8 +127,8 @@ def create_df(data_file, embs_file, mi_transformation):
 
 def create_data_loader(X, y, batch_size):
     embs_tensor = torch.tensor(X.iloc[:, :768].values, dtype=torch.float32).to(device)
-    label1_tensor = torch.tensor(X.filter(regex='^label1_').values, dtype=torch.int).to(device)
-    label2_tensor = torch.tensor(X.filter(regex='^label2_').values, dtype=torch.int).to(device)
+    label1_tensor = torch.tensor(X['label1'].values, dtype=torch.long).to(device) # Note that target class must be of type torch.long
+    label2_tensor = torch.tensor(X['label2'].values, dtype=torch.long).to(device)
     mi_tensor = torch.tensor(y.values.reshape(-1, 1), dtype=torch.float32).to(device)
     dataset = TensorDataset(embs_tensor, label1_tensor, label2_tensor, mi_tensor)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
@@ -126,15 +139,12 @@ if __name__ == '__main__':
 
     df = create_df(data_file=input_file, embs_file=embeddings_file, mi_transformation=MI_TRANSFORMATION)
 
-    label1_values = set(df['label1'].unique())
-    label2_values = set(df['label2'].unique())
-
-    df = df.drop(['label1', 'label2'], axis=1)  # Drop the original labels1 and labels2 as we do not need them anymore
-
     X_train, X_val, y_train, y_val = train_test_split(df.iloc[:, :-1], df['mi_score'], random_state=42, test_size=0.3)
     train_dataloader = create_data_loader(X_train, y_train, BATCH_SIZE)
     validation_dataloader = create_data_loader(X_val, y_val, BATCH_SIZE)
 
+    label1_values = set(df['label1'].unique())
+    label2_values = set(df['label2'].unique())
     model = BERT_Regressor(input_dim=BERT_OUTPUT_SHAPE, num_labels1=len(label1_values), num_labels2=len(label2_values))
     model.to(device)
 
@@ -155,10 +165,8 @@ if __name__ == '__main__':
 
             label1_classification_output, label2_classification_output, regression_output = model(embeddings)
 
-            labels1_indices = torch.argmax(labels1, dim=1)
-            label1_loss = classification_criterion(label1_classification_output, labels1_indices)
-            labels2_indices = torch.argmax(labels2, dim=1)
-            label2_loss = classification_criterion(label2_classification_output, labels2_indices)
+            label1_loss = classification_criterion(label1_classification_output, labels1)
+            label2_loss = classification_criterion(label2_classification_output, labels2)
             regression_loss = regression_criterion(regression_output, mi_score)
             loss = label1_loss + label2_loss + regression_loss
 
@@ -178,10 +186,8 @@ if __name__ == '__main__':
 
                 val_label1_classification_output, val_label2_classification_output, val_regression_output = model(val_embeddings)
 
-                val_labels1_indices = torch.argmax(val_labels1, dim=1)
-                val_label1_loss = classification_criterion(val_label1_classification_output, val_labels1_indices)
-                val_labels2_indices = torch.argmax(val_labels2, dim=1)
-                val_label2_loss = classification_criterion(val_label2_classification_output, val_labels2_indices)
+                val_label1_loss = classification_criterion(val_label1_classification_output, val_labels1)
+                val_label2_loss = classification_criterion(val_label2_classification_output, val_labels2)
                 val_regression_loss = regression_criterion(val_regression_output, val_mi_score)
                 val_loss = val_label1_loss + val_label2_loss + val_regression_loss
 
