@@ -43,7 +43,7 @@ def results_to_files(results_dict, output_dir):
 
     results_df.to_csv(f'{output_dir}/results.csv', index=True)
 
-def create_network(input_dim, hidden_config_dims, output_dim):
+def create_network(input_dim, hidden_layers_config, output_dim):
     '''
     Creates a deep model according to the given configuration
     :param input_dim: the input dimension of the network
@@ -56,11 +56,11 @@ def create_network(input_dim, hidden_config_dims, output_dim):
     layers = []
 
     prev_dim = input_dim
-    num_layers = len(hidden_config_dims) // 2  # Each layer has a dim and dropout rate
+    num_layers = len(hidden_layers_config) // 2  # Each layer has a dim and dropout rate
 
     for i in range(num_layers):
-        dim = hidden_config_dims[i * 2]
-        dropout_rate = hidden_config_dims[i * 2 + 1]
+        dim = hidden_layers_config[i * 2]
+        dropout_rate = hidden_layers_config[i * 2 + 1]
 
         layers.append(nn.Linear(prev_dim, dim))
 

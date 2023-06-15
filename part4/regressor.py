@@ -44,7 +44,7 @@ class BERT_Regressor(nn.Module):
                                      for no dropout layer, use None value.
         '''
         super(BERT_Regressor, self).__init__()
-        self.model = create_network(input_dim, hidden_layers_config, 1)
+        self.model = create_network(input_dim=input_dim, hidden_layers_config=hidden_layers_config, output_dim=1)
 
     def forward(self, x):
         return self.model(x)
