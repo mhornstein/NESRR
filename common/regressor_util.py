@@ -63,10 +63,11 @@ def create_network(input_dim, hidden_config_dims, output_dim):
         dropout_rate = hidden_config_dims[i * 2 + 1]
 
         layers.append(nn.Linear(prev_dim, dim))
-        layers.append(nn.ReLU())
 
         if dropout_rate is not None:
             layers.append(nn.Dropout(dropout_rate))
+
+        layers.append(nn.ReLU())
 
         prev_dim = dim
 
