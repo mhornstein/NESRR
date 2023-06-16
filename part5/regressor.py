@@ -8,6 +8,7 @@ warnings.filterwarnings("ignore", category=FutureWarning) # Disable the warning
 import os
 from sklearn.preprocessing import LabelEncoder
 import sys
+from sklearn import metrics
 
 sys.path.append('../')
 from common.regressor_util import *
@@ -110,6 +111,32 @@ def create_data_loader(X, y, batch_size, shuffle):
     dataset = TensorDataset(ids_tensor, embs_tensor, label1_tensor, label2_tensor, mi_tensor)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
     return dataloader
+
+def get_classification_report(header, true_labels, predicted_labels):
+    '''
+    Generate a report as a string containing scores for the classification.
+    Notes:
+        The averaging over the classes is set to 'weighted', which means the average is calculated based on
+        the number of true instances for each label (= "support")
+        This may result in an F-score that is not between precision and recall.
+    :param header: title for the classification report
+    :param true_labels: True class labels
+    :param predicted_labels: Predicted class labels
+    :return: str: report as a string
+    '''
+    accuracy = metrics.accuracy_score(true_labels, predicted_labels)
+    precision = metrics.precision_score(true_labels, predicted_labels, average='weighted', zero_division=0)
+    recall = metrics.recall_score(true_labels, predicted_labels, average='weighted', zero_division=0)
+    f1_score = metrics.f1_score(true_labels, predicted_labels, average='weighted', zero_division=0)
+    classification_report = metrics.classification_report(true_labels, predicted_labels, zero_division=0)
+
+    return f'classification scores for {header}\n' \
+           f'----------------------------------\n' \
+           f'Accuracy: {accuracy}\n' \
+           f'Precision: {precision}\n' \
+           f'Recall: {recall}\n' \
+           f'F1 Score: {f1_score}\n' \
+           f'\nClassification Report:\n{classification_report}'
 
 if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -222,8 +249,15 @@ if __name__ == '__main__':
     avg_test_loss = test_total_loss / len(test_dataloader)
 
     out_df.to_csv(f'{OUTPUT_DIR}/test_predictions_results.csv', index=True)
-    with open(f'{OUTPUT_DIR}/test_loss.txt', 'w') as file:
-        file.write(f'Average test regression loss: {avg_test_loss}')
-        file.write(f'label1 classification scores TODO')
-        file.write(f'label2 classification scores TODO')
-        # TODO: add classification metrices
+    with open(f'{OUTPUT_DIR}/test_report.txt', 'w') as file:
+        file.write(f'Average test regression loss: {avg_test_loss}\n')
+        file.write('\n')
+
+        label1_report = get_classification_report('label1', out_df['label1'].astype(int),
+                                                  out_df['label1_pred'].astype(int))
+        file.write(label1_report)
+        file.write('\n')
+
+        label2_report = get_classification_report('label2', out_df['label2'].astype(int),
+                                                  out_df['label2_pred'].astype(int))
+        file.write(label2_report)
