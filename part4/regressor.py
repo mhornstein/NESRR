@@ -168,5 +168,5 @@ if __name__ == '__main__':
     avg_test_loss = test_total_loss / len(test_dataloader)
 
     out_df.to_csv(f'{OUTPUT_DIR}/test_predictions_results.csv', index=True)
-    with open(f'{OUTPUT_DIR}/test_loss.txt', 'w') as file:
+    with open(f'{OUTPUT_DIR}/test_report.txt', 'w') as file:
         file.write(f'Average test loss: {avg_test_loss}')
