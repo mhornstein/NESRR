@@ -103,9 +103,7 @@ if __name__ == '__main__':
         start_time = time.time()
         model.train()
         total_loss = 0
-        for batch in train_dataloader:
-            ids, embeddings, targets = batch
-
+        for ids, embeddings, targets in train_dataloader:
             outputs = model(embeddings)
             loss = criterion(outputs, targets)
             total_loss += loss.item()
@@ -119,9 +117,7 @@ if __name__ == '__main__':
         model.eval()
         val_total_loss = 0
         with torch.no_grad():
-            for val_batch in validation_dataloader:
-                val_ids, val_embeddings, val_targets = val_batch
-
+            for val_ids, val_embeddings, val_targets in validation_dataloader:
                 val_outputs = model(val_embeddings)
                 val_loss = criterion(val_outputs, val_targets)
 
