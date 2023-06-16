@@ -86,7 +86,6 @@ def create_df(data_file, embs_file, mi_transformation):
     df = pd.read_csv(data_file)
     df['mi_score'] = transform_mi(df['mi_score'], mi_transformation)
 
-    df = df[['sent_id', 'label1', 'label2', 'mi_score']]
     encode_column(df, 'label1', LABEL_ENCODER)
     encode_column(df, 'label2', LABEL_ENCODER)
     df = df.set_index('sent_id')
@@ -102,13 +101,14 @@ def create_df(data_file, embs_file, mi_transformation):
 
     return df
 
-def create_data_loader(X, y, batch_size):
-    embs_tensor = torch.tensor(X.iloc[:, :768].values, dtype=torch.float32).to(device)
+def create_data_loader(X, y, batch_size, shuffle):
+    ids_tensor = torch.tensor(X.index, dtype=torch.int64).unsqueeze(dim=1).to(device)
+    embs_tensor = torch.tensor(X.iloc[:, :BERT_OUTPUT_SHAPE].values, dtype=torch.float32).to(device)
     label1_tensor = torch.tensor(X['label1'].values, dtype=torch.long).to(device) # Note that target class must be of type torch.long
     label2_tensor = torch.tensor(X['label2'].values, dtype=torch.long).to(device)
     mi_tensor = torch.tensor(y.values.reshape(-1, 1), dtype=torch.float32).to(device)
-    dataset = TensorDataset(embs_tensor, label1_tensor, label2_tensor, mi_tensor)
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    dataset = TensorDataset(ids_tensor, embs_tensor, label1_tensor, label2_tensor, mi_tensor)
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
     return dataloader
 
 if __name__ == '__main__':
@@ -116,9 +116,11 @@ if __name__ == '__main__':
 
     df = create_df(data_file=input_file, embs_file=embeddings_file, mi_transformation=MI_TRANSFORMATION)
 
-    X_train, X_val, y_train, y_val = train_test_split(df.iloc[:, :-1], df['mi_score'], random_state=42, test_size=0.3)
-    train_dataloader = create_data_loader(X_train, y_train, BATCH_SIZE)
-    validation_dataloader = create_data_loader(X_val, y_val, BATCH_SIZE)
+    X_train, X_tmp, y_train, y_tmp = train_test_split(df.iloc[:, :-1], df['mi_score'], random_state=42, test_size=0.3)
+    X_val, X_test, y_val, y_test = train_test_split(X_tmp, y_tmp, random_state=42, test_size=0.5)
+    train_dataloader = create_data_loader(X_train, y_train, BATCH_SIZE, shuffle=True)
+    validation_dataloader = create_data_loader(X_val, y_val, BATCH_SIZE, shuffle=True)
+    test_dataloader = create_data_loader(X_test, y_test, BATCH_SIZE, shuffle=False)
 
     label1_values = set(df['label1'].unique())
     label2_values = set(df['label2'].unique())
@@ -141,9 +143,7 @@ if __name__ == '__main__':
         start_time = time.time()
         model.train()
         total_loss = 0
-        for batch in train_dataloader:
-            embeddings, labels1, labels2, mi_score = batch
-
+        for ids, embeddings, labels1, labels2, mi_score in train_dataloader:
             label1_classification_output, label2_classification_output, regression_output = model(embeddings)
 
             label1_loss = classification_criterion(label1_classification_output, labels1)
@@ -162,9 +162,7 @@ if __name__ == '__main__':
         model.eval()
         val_total_loss = 0
         with torch.no_grad():
-            for val_batch in validation_dataloader:
-                val_embeddings, val_labels1, val_labels2, val_mi_score = batch
-
+            for val_ids, val_embeddings, val_labels1, val_labels2, val_mi_score in validation_dataloader:
                 val_label1_classification_output, val_label2_classification_output, val_regression_output = model(val_embeddings)
 
                 val_label1_loss = classification_criterion(val_label1_classification_output, val_labels1)
@@ -185,3 +183,47 @@ if __name__ == '__main__':
         print('\n'.join(key + ': ' + str(value) for key, value in result_entry.items()) + '\n')
         
     results_to_files(results_dict=results, output_dir=OUTPUT_DIR)
+
+    print('Start testing...')
+    model.eval()
+
+    out_df = pd.DataFrame(columns=['target_mi', 'predicted_mi', 'abs_mi_err',
+                                   'label1_pred', 'label1', 'label2_pred', 'label2',
+                                   'ent1', 'ent2', 'masked_sent'])
+    test_total_loss = 0
+    with torch.no_grad():
+        for test_ids, test_embeddings, test_labels1, test_labels2, test_mi_score in test_dataloader:
+            test_label1_classification_output, test_label2_classification_output, test_regression_output = model(test_embeddings)
+
+            # Calculate loss: here we do not care about the classification loss but only care about the regression loss
+            test_regression_loss = regression_criterion(test_regression_output, test_mi_score)
+            test_total_loss += test_regression_loss.item()
+
+            # log results
+            absolute_errors = torch.abs(test_regression_output - test_mi_score)
+            label1_preds = torch.max(test_label1_classification_output, 1)[1]
+            label2_preds = torch.max(test_label2_classification_output, 1)[1]
+            batch_data = df.loc[torch.squeeze(test_ids)]
+            batch_results = pd.DataFrame({'sent_ids': test_ids.squeeze().numpy(),
+                                          'target_mi': test_mi_score.squeeze().numpy(),
+                                          'predicted_mi': test_regression_output.squeeze().numpy(),
+                                          'abs_mi_err': absolute_errors.squeeze().numpy(),
+                                          'label1_pred': label1_preds.numpy(),
+                                          'label1': batch_data['label1'].to_numpy(),
+                                          'label2_pred': label2_preds.numpy(),
+                                          'label2': batch_data['label2'].to_numpy()})
+            batch_results = batch_results.set_index('sent_ids', drop=True)
+            batch_results.index.name = None # remove index column name
+
+            batch_df = pd.concat([batch_results, batch_data[['ent1', 'ent2', 'masked_sent']]], axis=1)
+
+            out_df = out_df.append(batch_df, ignore_index=False)
+
+    avg_test_loss = test_total_loss / len(test_dataloader)
+
+    out_df.to_csv(f'{OUTPUT_DIR}/test_predictions_results.csv', index=True)
+    with open(f'{OUTPUT_DIR}/test_loss.txt', 'w') as file:
+        file.write(f'Average test regression loss: {avg_test_loss}')
+        file.write(f'label1 classification scores TODO')
+        file.write(f'label2 classification scores TODO')
+        # TODO: add classification metrices
