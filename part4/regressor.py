@@ -70,7 +70,7 @@ def create_df(data_file, embs_file, mi_transformation):
 
     return df
 
-def create_data_loader(X, y, batch_size, shuffle=True):
+def create_data_loader(X, y, batch_size, shuffle):
     ids_tensor = torch.tensor(X.index, dtype=torch.int64).unsqueeze(dim=1).to(device)
     X_tensor = torch.tensor(X.values, dtype=torch.float32).to(device)
     y_tensor = torch.tensor(y.values.reshape(-1, 1), dtype=torch.float32).to(device)
@@ -142,8 +142,7 @@ if __name__ == '__main__':
                                    'label1', 'label2', 'ent1', 'ent2', 'masked_sent'])
     test_total_loss = 0
     with torch.no_grad():
-        for test_batch in test_dataloader:
-            test_ids, test_embeddings, test_targets = test_batch
+        for test_ids, test_embeddings, test_targets in test_dataloader:
             test_outputs = model(test_embeddings)
             absolute_errors = torch.abs(test_outputs - test_targets)
             test_loss = criterion(test_outputs, test_targets)
