@@ -144,10 +144,13 @@ if __name__ == '__main__':
     with torch.no_grad():
         for test_ids, test_embeddings, test_targets in test_dataloader:
             test_outputs = model(test_embeddings)
-            absolute_errors = torch.abs(test_outputs - test_targets)
+
+            # Calculate loss
             test_loss = criterion(test_outputs, test_targets)
             test_total_loss += test_loss.item()
 
+            # log results
+            absolute_errors = torch.abs(test_outputs - test_targets)
             batch_results = pd.DataFrame({'sent_ids': test_ids.squeeze().numpy(),
                                        'target_mi': test_targets.squeeze().numpy(),
                                        'predicted_mi': test_outputs.squeeze().numpy(),
