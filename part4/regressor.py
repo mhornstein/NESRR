@@ -19,7 +19,6 @@ Options:
   --lr=<rate>                       Learning rate for training. [default: 1e-5]
 """
 
-
 from sklearn.model_selection import train_test_split
 from transformers.optimization import AdamW
 import torch
