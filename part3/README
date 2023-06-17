@@ -17,6 +17,9 @@ Script output
 - avg_val_loss.jpg: a plot illustrating the loss of the validation set over the epochs.
 - epoch_time.jpg: a plot illustrating the duration of each epoch.
 - results.csv: a CSV file containing the aforementioned information in a textual format.
+- test_predictions_results.csv: a CSV file containing the test-predictions results. It also contains the masked sentences and the
+                                information about the masked labels for better anlysis.
+- test_report.txt: a text file containing the calculated loss for the test set.
 
 More configurations
 ===================
