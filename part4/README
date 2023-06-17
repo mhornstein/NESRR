@@ -44,8 +44,9 @@ which are obtained from the output of the embedding_extractor.py script.
 
 How to run the script?
 ======================
-In the command prompt, type: python regressor.py <path to dataset> <path to embeddings file>
-for example: python regressor.py C:\Users\User\Documents\data.csv C:\Users\User\Documents\embeddings.out
+All the explanations are available in the script's docstring.
+To access this information via the command line, you can run the following command:
+python regressor.py --h
 
 Script output
 =============
