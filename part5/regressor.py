@@ -223,12 +223,14 @@ if __name__ == '__main__':
     model.eval()
 
     out_df = pd.DataFrame(columns=['target_mi', 'predicted_mi', 'abs_mi_err',
-                                   'label1_pred', 'label1', 'label2_pred', 'label2',
-                                   'ent1', 'ent2', 'masked_sent'])
+                                   'ent1', 'label1', 'label1_pred',
+                                   'ent2', 'label2', 'label2_pred',
+                                   'masked_sent'])
 
     out_df = out_df.astype({'target_mi': float, 'predicted_mi': float, 'abs_mi_err': float,
-                            'label1_pred': int, 'label1': int, 'label2_pred': int, 'label2': int,
-                            'ent1': str, 'ent2': str, 'masked_sent': str}) # Assign the desired data types to the columns
+                            'ent1': str, 'label1': int, 'label1_pred': int,
+                            'ent2': str, 'label2': int, 'label2_pred': int,
+                            'masked_sent': str}) # Assign the desired data types to the columns
     test_total_loss = 0
     with torch.no_grad():
         for test_ids, test_embeddings, test_labels1, test_labels2, test_mi_score in test_dataloader:
@@ -247,16 +249,17 @@ if __name__ == '__main__':
                                           'target_mi': test_mi_score.squeeze().numpy(),
                                           'predicted_mi': test_regression_output.squeeze().numpy(),
                                           'abs_mi_err': absolute_errors.squeeze().numpy(),
+                                          'ent1': batch_data['ent1'],
+                                          'label1': batch_data['label1'],
                                           'label1_pred': label1_preds.numpy(),
-                                          'label1': batch_data['label1'].to_numpy(),
+                                          'ent2': batch_data['ent2'],
+                                          'label2': batch_data['label2'],
                                           'label2_pred': label2_preds.numpy(),
-                                          'label2': batch_data['label2'].to_numpy()})
+                                          'masked_sent': batch_data['masked_sent'] })
             batch_results = batch_results.set_index('sent_ids', drop=True)
             batch_results.index.name = None # remove index column name
 
-            batch_df = pd.concat([batch_results, batch_data[['ent1', 'ent2', 'masked_sent']]], axis=1)
-
-            out_df = out_df.append(batch_df, ignore_index=False)
+            out_df = out_df.append(batch_results, ignore_index=False)
 
     avg_test_loss = test_total_loss / len(test_dataloader)
 
