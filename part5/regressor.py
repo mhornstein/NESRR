@@ -151,6 +151,8 @@ def get_encoding_report(le):
     return s
 
 if __name__ == '__main__':
+    total_start_time = time.time()
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Get command line arguments
@@ -322,3 +324,6 @@ if __name__ == '__main__':
     out_df['label2'] = le.inverse_transform(out_df['label2'])
     out_df['label2_pred'] = le.inverse_transform(out_df['label2_pred'])
     out_df.to_csv(f'{output_dir}/test_predictions_results.csv', index=True)
+
+    total_time = time.time() - total_start_time
+    print(f'Done. total time: {total_time} seconds')

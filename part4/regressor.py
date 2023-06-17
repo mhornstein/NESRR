@@ -82,6 +82,8 @@ def create_data_loader(X, y, batch_size, shuffle):
     return dataloader
 
 if __name__ == '__main__':
+    total_start_time = time.time()
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Get command line arguments
@@ -202,3 +204,6 @@ if __name__ == '__main__':
     out_df.to_csv(f'{output_dir}/test_predictions_results.csv', index=True)
     with open(f'{output_dir}/test_report.txt', 'w') as file:
         file.write(f'Average test loss: {avg_test_loss}')
+
+    total_time = time.time() - total_start_time
+    print(f'Done. total time: {total_time} seconds')
