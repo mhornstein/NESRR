@@ -35,24 +35,20 @@ OUTPUT_DIR = 'results'
 if not os.path.exists(f'./{OUTPUT_DIR}'):
     os.makedirs(f'{OUTPUT_DIR}')
 
-LABEL_ENCODER = LabelEncoder()
-
 ####################
 
 class BERT_Regressor(nn.Module):
 
-    def __init__(self, input_dim, num_labels1, num_labels2, classification_network_hidden_layers_config, regression_network_hidden_layers_config):
+    def __init__(self, input_dim, num_labels, classification_network_hidden_layers_config, regression_network_hidden_layers_config):
         super(BERT_Regressor, self).__init__()
         self.input_dim = input_dim
-        self.num_labels1 = num_labels1
-        self.num_labels2 = num_labels2
-        num_labels = self.num_labels1 + self.num_labels2
+        self.num_labels = num_labels
 
         # classification layer
         self.classification_network = create_network(input_dim=self.input_dim,
                                                      hidden_layers_config=classification_network_hidden_layers_config,
-                                                     output_dim=num_labels)
-        self.regression_network = create_network(input_dim=num_labels + self.input_dim,
+                                                     output_dim=num_labels * 2)
+        self.regression_network = create_network(input_dim=num_labels * 2+ self.input_dim,
                                                  hidden_layers_config=regression_network_hidden_layers_config,
                                                  output_dim=1)
 
@@ -60,8 +56,8 @@ class BERT_Regressor(nn.Module):
         # Step 1: classification
         x = self.classification_network(embs)
 
-        label1_classification_output = x[:, :self.num_labels1]
-        label2_classification_output = x[:, self.num_labels1:]
+        label1_classification_output = x[:, :self.num_labels]
+        label2_classification_output = x[:, self.num_labels:]
 
         # Step 2: regression with the classification output
         combined_input = torch.cat((label1_classification_output, label2_classification_output, embs), dim=1)
@@ -72,23 +68,11 @@ class BERT_Regressor(nn.Module):
 
 ####################
 
-def encode_column(df, column_name, encoder):
-    '''
-    This function converts the labels in a specified column of a DataFrame to ordinal numbers.
-    The categorical labels are transformed into sequential integers representing an ordinal positions.
-    :param df: the required dataframe
-    :param column_name: the column for which the labels
-    '''
-    encoder.fit(df[column_name])
-    df[column_name] = encoder.transform(df[column_name])
-
 def create_df(data_file, embs_file, mi_transformation):
     # Load input data file
     df = pd.read_csv(data_file)
     df['mi_score'] = transform_mi(df['mi_score'], mi_transformation)
 
-    encode_column(df, 'label1', LABEL_ENCODER)
-    encode_column(df, 'label2', LABEL_ENCODER)
     df = df.set_index('sent_id')
 
     # Load embeddings file
@@ -101,6 +85,12 @@ def create_df(data_file, embs_file, mi_transformation):
     df = df[[col for col in df.columns if col != 'mi_score'] + ['mi_score']] # move mi to be the last column
 
     return df
+
+def get_all_possible_labels(df):
+    label1_values = set(df['label1'].unique())
+    label2_values = set(df['label2'].unique())
+    labels = list(label1_values | label2_values)
+    return labels
 
 def create_data_loader(X, y, batch_size, shuffle):
     ids_tensor = torch.tensor(X.index, dtype=torch.int64).unsqueeze(dim=1).to(device)
@@ -138,10 +128,31 @@ def get_classification_report(header, true_labels, predicted_labels):
            f'F1 Score: {f1_score}\n' \
            f'\nClassification Report:\n{classification_report}'
 
+def get_encoding_report(le):
+    '''
+    This function generates a report of labels and their corresponding encodings using a fitted LabelEncoder object.
+    :param le: A fitted LabelEncoder object. It should be previously fitted on the labels.
+    :return: A string containing the report of labels and their encodings. \
+            The string is formatted with the label and its corresponding encoding in a tabular format.
+    '''
+    s =  'encodings:\n'
+    s += '----------\n'
+    s += 'Label\t\tEncoding\n'
+    for label, encoding in zip(le.classes_, le.transform(le.classes_)):
+        s += f'{label: <12}\t{encoding}\n'
+    return s
+
 if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     df = create_df(data_file=input_file, embs_file=embeddings_file, mi_transformation=MI_TRANSFORMATION)
+
+    labels = get_all_possible_labels(df)
+
+    le = LabelEncoder() # encode labels from string ('GPE', 'ORG', ...) to ordinal numbers (0, 1, ...)
+    le.fit(labels)
+    df['label1'] = le.transform(df['label1'])
+    df['label2'] = le.transform(df['label2'])
 
     X_train, X_tmp, y_train, y_tmp = train_test_split(df.iloc[:, :-1], df['mi_score'], random_state=42, test_size=0.3)
     X_val, X_test, y_val, y_test = train_test_split(X_tmp, y_tmp, random_state=42, test_size=0.5)
@@ -149,11 +160,8 @@ if __name__ == '__main__':
     validation_dataloader = create_data_loader(X_val, y_val, BATCH_SIZE, shuffle=True)
     test_dataloader = create_data_loader(X_test, y_test, BATCH_SIZE, shuffle=False)
 
-    label1_values = set(df['label1'].unique())
-    label2_values = set(df['label2'].unique())
     model = BERT_Regressor(input_dim=BERT_OUTPUT_SHAPE,
-                           num_labels1=len(label1_values),
-                           num_labels2=len(label2_values),
+                           num_labels=len(labels),
                            classification_network_hidden_layers_config=CLASSIFICATION_NETWORK_HIDDEN_LAYERS_CONFIG,
                            regression_network_hidden_layers_config=REGRESSION_NETWORK_HIDDEN_LAYERS_CONFIG)
     model.to(device)
@@ -217,6 +225,10 @@ if __name__ == '__main__':
     out_df = pd.DataFrame(columns=['target_mi', 'predicted_mi', 'abs_mi_err',
                                    'label1_pred', 'label1', 'label2_pred', 'label2',
                                    'ent1', 'ent2', 'masked_sent'])
+
+    out_df = out_df.astype({'target_mi': float, 'predicted_mi': float, 'abs_mi_err': float,
+                            'label1_pred': int, 'label1': int, 'label2_pred': int, 'label2': int,
+                            'ent1': str, 'ent2': str, 'masked_sent': str}) # Assign the desired data types to the columns
     test_total_loss = 0
     with torch.no_grad():
         for test_ids, test_embeddings, test_labels1, test_labels2, test_mi_score in test_dataloader:
@@ -248,16 +260,23 @@ if __name__ == '__main__':
 
     avg_test_loss = test_total_loss / len(test_dataloader)
 
-    out_df.to_csv(f'{OUTPUT_DIR}/test_predictions_results.csv', index=True)
     with open(f'{OUTPUT_DIR}/test_report.txt', 'w') as file:
         file.write(f'Average test regression loss: {avg_test_loss}\n')
         file.write('\n')
 
-        label1_report = get_classification_report('label1', out_df['label1'].astype(int),
-                                                  out_df['label1_pred'].astype(int))
+        encoding_report = get_encoding_report(le)
+        file.write(encoding_report)
+        file.write('\n')
+
+        label1_report = get_classification_report('label1', out_df['label1'], out_df['label1_pred'])
         file.write(label1_report)
         file.write('\n')
 
-        label2_report = get_classification_report('label2', out_df['label2'].astype(int),
-                                                  out_df['label2_pred'].astype(int))
+        label2_report = get_classification_report('label2', out_df['label2'], out_df['label2_pred'])
         file.write(label2_report)
+
+    out_df['label1'] = le.inverse_transform(out_df['label1']) # change labels in out_df back from numbers => to string labels
+    out_df['label1_pred'] = le.inverse_transform(out_df['label1_pred'])
+    out_df['label2'] = le.inverse_transform(out_df['label2'])
+    out_df['label2_pred'] = le.inverse_transform(out_df['label2_pred'])
+    out_df.to_csv(f'{OUTPUT_DIR}/test_predictions_results.csv', index=True)
