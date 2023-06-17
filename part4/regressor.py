@@ -110,6 +110,7 @@ if __name__ == '__main__':
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
+    # Preparing the data
     df = create_df(data_file=input_file, embs_file=embedding_file, mi_transformation=mi_transformation)
 
     X_train, X_tmp, y_train, y_tmp = train_test_split(df.iloc[:, :BERT_OUTPUT_SHAPE], df['mi_score'], random_state=42, test_size=0.3)
@@ -118,6 +119,7 @@ if __name__ == '__main__':
     validation_dataloader = create_data_loader(X_val, y_val, batch_size, shuffle=False)
     test_dataloader = create_data_loader(X_test, y_test, batch_size, shuffle=False)
 
+    # Preparing the model
     model = BERT_Regressor(input_dim=BERT_OUTPUT_SHAPE, hidden_layers_config=reg_network)
     model.to(device)
 

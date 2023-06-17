@@ -99,6 +99,8 @@ if __name__ == '__main__':
 
     results = []
 
+    print('Start training...')
+
     for epoch in range(1, num_epochs + 1):
         start_time = time.time()
         model.train()
