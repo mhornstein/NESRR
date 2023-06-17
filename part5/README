@@ -23,6 +23,9 @@ Script output
 - avg_val_loss.jpg: a plot illustrating the loss of the validation set over the epochs.
 - epoch_time.jpg: a plot illustrating the duration of each epoch.
 - results.csv: a CSV file containing the aforementioned information in a textual format.
+- test_predictions_results.csv: a CSV file containing the test prediction results, including both the predicted MI score and the entity label predictions.
+                                It also includes the masked sentences and other information about each sentence for better analysis.
+- test_report.txt: a text file containing the calculated loss for the test set in the regression task, as well as the scores for the label classification task.
 
 More configurations
 ===================
