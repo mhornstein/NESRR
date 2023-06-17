@@ -86,7 +86,7 @@ if __name__ == '__main__':
     X_train, X_tmp, y_train, y_tmp = train_test_split(df.iloc[:, :BERT_OUTPUT_SHAPE], df['mi_score'], random_state=42, test_size=0.3)
     X_val, X_test, y_val, y_test = train_test_split(X_tmp, y_tmp, random_state=42, test_size=0.5)
     train_dataloader = create_data_loader(X_train, y_train, BATCH_SIZE, shuffle=True)
-    validation_dataloader = create_data_loader(X_val, y_val, BATCH_SIZE, shuffle=True)
+    validation_dataloader = create_data_loader(X_val, y_val, BATCH_SIZE, shuffle=False)
     test_dataloader = create_data_loader(X_test, y_test, BATCH_SIZE, shuffle=False)
 
     model = BERT_Regressor(input_dim=BERT_OUTPUT_SHAPE, hidden_layers_config=REGRESSION_NETWORK_HIDDEN_LAYERS_CONFIG)

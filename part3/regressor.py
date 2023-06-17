@@ -62,7 +62,7 @@ if __name__ == '__main__':
     tokenizer = BertTokenizerFast.from_pretrained(BERT_MODEL)
     max_length = max([len(s.split()) for s in df['masked_sent']])
     train_dataloader = create_data_loader(tokenizer, X_train, y_train, max_length, BATCH_SIZE, shuffle=True)
-    validation_dataloader = create_data_loader(tokenizer, X_val, y_val, max_length, BATCH_SIZE, shuffle=True)
+    validation_dataloader = create_data_loader(tokenizer, X_val, y_val, max_length, BATCH_SIZE, shuffle=False)
     test_dataloader = create_data_loader(tokenizer, X_test, y_test, max_length, BATCH_SIZE, shuffle=False)
 
     # Preparing the model
