@@ -1,3 +1,21 @@
+"""
+This script trains the BERT model for a regression task focused on predicting the mutual information score between two masked entities within a sentence.
+
+Usage:
+  regressor.py --input_file=<file> [--mi_trans=<mi_transformation>] [--output_dir=<directory>] [--epochs=<count>] [--batch_size=<size>] [--lr=<rate>]
+  regressor.py (-h | --help)
+
+Options:
+  -h --help                    Show this screen.
+  --input_file=<file>          Path to the dataset file.
+  --mi_trans=<mi_transformation>  The transformation to apply for the mutual information scores.
+                                 Available options: None, minmax, ln, sqrt. [default: None]
+  --output_dir=<directory>     Path to the directory to write the results. [default: ./results]
+  --epochs=<count>             Number of epochs for training. [default: 10]
+  --batch_size=<size>          Batch size. [default: 32]
+  --lr=<rate>                  Learning rate for training. [default: 1e-5]
+"""
+
 from sklearn.model_selection import train_test_split
 from transformers import BertConfig, BertTokenizerFast, BertForSequenceClassification
 from transformers.optimization import AdamW
@@ -8,27 +26,12 @@ import warnings
 import os
 warnings.filterwarnings("ignore", category=FutureWarning) # Disable the warning
 import sys
+from docopt import docopt
 
 sys.path.append('../')
 from common.regressor_util import *
 
-BATCH_SIZE = 32
-LEARNING_RATE = 1e-5
-NUM_EPOCHS = 10
-
-MI_TRANSFORMATION = None  # can be either None, or: 'sqrt', 'ln', 'log10'
-
-if len(sys.argv) == 1:
-    raise ValueError("Path to dataset missing")
-else:
-    input_file = sys.argv[1]
-
 BERT_MODEL = 'bert-base-cased'
-
-OUTPUT_DIR = 'results'
-
-if not os.path.exists(f'./{OUTPUT_DIR}'):
-    os.makedirs(f'{OUTPUT_DIR}')
 
 ####################
 
@@ -54,27 +57,49 @@ def create_data_loader(tokenizer, X, y, max_length, batch_size, shuffle):
 if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+    # Get command line arguments
+    arguments = docopt(__doc__)
+
+    input_file = arguments['--input_file']
+    mi_transformation = arguments['--mi_trans']
+    output_dir = arguments['--output_dir']
+    num_epochs = int(arguments['--epochs'])
+    batch_size = int(arguments['--batch_size'])
+    learning_rate = float(arguments['--lr'])
+
+    print("Running regression task with the following arguments:")
+    print(f"Input file: {input_file}")
+    print(f"MI transformation: {mi_transformation}")
+    print(f"Output directory: {output_dir}")
+    print(f"Epochs: {num_epochs}")
+    print(f"Batch size: {batch_size}")
+    print(f"Learning rate: {learning_rate}")
+    print()
+
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
     # Preparing the data
-    df = create_df(input_file, MI_TRANSFORMATION)
+    df = create_df(input_file, mi_transformation)
     X_train, X_tmp, y_train, y_tmp = train_test_split(df['masked_sent'], df['mi_score'], random_state=42, test_size=0.3)
     X_val, X_test, y_val, y_test = train_test_split(X_tmp, y_tmp, random_state=42, test_size=0.5)
 
     tokenizer = BertTokenizerFast.from_pretrained(BERT_MODEL)
     max_length = max([len(s.split()) for s in df['masked_sent']])
-    train_dataloader = create_data_loader(tokenizer, X_train, y_train, max_length, BATCH_SIZE, shuffle=True)
-    validation_dataloader = create_data_loader(tokenizer, X_val, y_val, max_length, BATCH_SIZE, shuffle=False)
-    test_dataloader = create_data_loader(tokenizer, X_test, y_test, max_length, BATCH_SIZE, shuffle=False)
+    train_dataloader = create_data_loader(tokenizer, X_train, y_train, max_length, batch_size, shuffle=True)
+    validation_dataloader = create_data_loader(tokenizer, X_val, y_val, max_length, batch_size, shuffle=False)
+    test_dataloader = create_data_loader(tokenizer, X_test, y_test, max_length, batch_size, shuffle=False)
 
     # Preparing the model
     config = BertConfig.from_pretrained(BERT_MODEL, num_labels=1)  # Set num_labels=1 for regression
     model = BertForSequenceClassification(config)
     model.to(device)
 
-    optimizer = AdamW(model.parameters(), lr=LEARNING_RATE)
+    optimizer = AdamW(model.parameters(), lr=learning_rate)
 
     results = []
 
-    for epoch in range(1, NUM_EPOCHS + 1):
+    for epoch in range(1, num_epochs + 1):
         start_time = time.time()
         model.train()
         total_loss = 0
@@ -106,7 +131,7 @@ if __name__ == '__main__':
         results.append(result_entry)
         print('\n'.join(key + ': ' + str(value) for key, value in result_entry.items()) + '\n')
 
-    results_to_files(results_dict=results, output_dir=OUTPUT_DIR)
+    results_to_files(results_dict=results, output_dir=output_dir)
 
     print('Start testing...')
 
@@ -137,6 +162,6 @@ if __name__ == '__main__':
 
     avg_test_loss = test_total_loss / len(test_dataloader)
 
-    out_df.to_csv(f'{OUTPUT_DIR}/test_predictions_results.csv', index=True)
-    with open(f'{OUTPUT_DIR}/test_report.txt', 'w') as file:
+    out_df.to_csv(f'{output_dir}/test_predictions_results.csv', index=True)
+    with open(f'{output_dir}/test_report.txt', 'w') as file:
         file.write(f'Average test loss: {avg_test_loss}')

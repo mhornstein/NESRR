@@ -6,8 +6,9 @@ To accomplish this task, the script makes use of the dataset generated in part 1
 
 How to run the script?
 ======================
-In the command prompt, type: python regressor.py <path to dataset>
-for example: python regressor.py C:\Users\User\Documents\data.csv
+All the explanations are available in the script's docstring.
+To access this information via the command line, you can run the following command:
+python regressor.py --h
 
 Script output
 =============

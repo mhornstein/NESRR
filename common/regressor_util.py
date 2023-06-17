@@ -15,7 +15,7 @@ def transform_mi(series, transformation_type):
     :param transformation_type: string representing the required transformaion. can be either None, minmax, ln, or sqrt
     :return:
     '''
-    if transformation_type is None:
+    if transformation_type == 'None':
         scaled_series = series
     elif transformation_type == 'sqrt':
         scaled_series = np.sqrt(series)
