@@ -140,7 +140,7 @@ if __name__ == '__main__':
     model.eval()
 
     out_df = pd.DataFrame(columns=['target_mi', 'predicted_mi', 'abs_mi_err',
-                                   'label1', 'label2', 'ent1', 'ent2', 'masked_sent'])
+                                   'ent1', 'label1', 'ent2', 'label2', 'masked_sent'])
     test_total_loss = 0
     with torch.no_grad():
         for test_ids, test_embeddings, test_targets in test_dataloader:
