@@ -220,6 +220,7 @@ if __name__ == '__main__':
     results_to_files(results_dict=results, output_dir=OUTPUT_DIR)
 
     print('Start testing...')
+
     model.eval()
 
     out_df = pd.DataFrame(columns=['target_mi', 'predicted_mi', 'abs_mi_err',
