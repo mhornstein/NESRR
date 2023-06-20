@@ -59,7 +59,7 @@ LAW: Named documents made into laws.
 
 note: I chose not to add NORP: Nationalities or religious or political groups
 '''
-ENTITIES_TYPES = {'FAC', 'EVENT', 'PERSON', 'ORG', 'PRODUCT', 'GPE', 'WORK_OF_ART', 'LAW', 'LOC'}
+ENTITIES_TYPES = {'FAC', 'EVENT', 'PERSON', 'ORG', 'PRODUCT', 'GPE', 'WORK_OF_ART', 'LAW', 'LOC', 'LANGUAGE'}
 
 def load_texts(file_path):
     f = open(file_path, "r", encoding="utf8")
