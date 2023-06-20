@@ -29,6 +29,8 @@ MASK_LABEL = '[MASK]'
 PROBABILITY_EPSILON = 0.001
 MI_EPSILON = 1e-9
 
+NULL_ENTITY = ('null entity', 'null label') # for entities that are alone in a sentence, we'll say their paired with the "null entity"
+
 class SentenceData:
     def __init__(self, id, txt, entities):
         self.id = id
@@ -92,6 +94,8 @@ def extract_probs(sentences_data):
     * entities_prob - entities_prob[x] = the probability of entity x to be part of a pair
     * pairs_prob - pairs_prob[(x,y)] = the probability of lexicographic-sorted pair (x,y) to appear as a pair
 
+    The function assumes each sentence contains at least one entity
+
     Note that while all entries in pairs_prob are i.i.d, the case is not the same for entities_prob is not.
     A basic example to illustrate why:
     if we have just one pair (x,y), pairs_prob[(x,y)] = 1, but entities_prob[x] = entities_prob[y] = 1.
@@ -103,16 +107,18 @@ def extract_probs(sentences_data):
     for sent_data in sentences_data.values():
         entities = sent_data.entities
 
-        if len(entities) < 2:
-            continue
+        if len(entities) == 1:
+            entity = next(iter(entities))
+            sorted_entities = [entity, NULL_ENTITY]
+        else:
+            sorted_entities = sorted(entities, key=lambda x: x[0])  # Keep lexicographic order
 
-        sorted_entities = sorted(entities, key=lambda x: x[0])  # Keep lexicographic order
         all_pairs = list(combinations(sorted_entities, 2))
         for ent1, ent2 in all_pairs:
             pairs_prob[(ent1[0], ent2[0])] += 1
 
         n = len(sorted_entities)
-        for ent in entities:
+        for ent in sorted_entities:
             entities_prob[ent[0]] += n - 1 # this is the number of possible pairs ent is part of
 
     # Now we convert counts => to probabilities
