@@ -1,0 +1,27 @@
+The data_preprocessor.py Script
+===============================
+The data_preprocessor.py script loads the WikiText-103 dataset files, extract its lines (each line represents a paragraph)
+and revert any preprocessing done to the original text (such as tokenization or escaping using the @ symbol).
+
+How to run the script?
+======================
+1. Download the WikiText-103 dataset and unzip it. The unzipped directory will contain 3 files: wiki.train.raw, wiki.valid.raw and wiki.test.raw.
+2. In the cmd, write: python data_preprocessor.py <path to the unzipped directory>.
+for example: python data_preprocessor.py C:\Users\User\Documents\wikitext-103-raw
+
+Script output
+=============
+* The progress will be logged to the console.
+* The preprocessed data will be written to the text file: processed_data.txt
+
+Link to WikiText-103 dataset
+============================
+Dataset description link: https://blog.salesforceairesearch.com/the-wikitext-long-term-dependency-language-modeling-dataset/
+Direct link to download the dataset: https://s3.amazonaws.com/research.metamind.io/wikitext/wikitext-103-raw-v1.zip?ref=blog.salesforceairesearch.com
+
+Environment
+===========
+The scripts were tested in the following config:
+OS: Windows
+Python version: 3.10.8
+Spacy version: 3.5.3 with en_core_web_lg model installed
