@@ -62,6 +62,7 @@ LAW: Named documents made into laws.
 note: I chose not to add NORP: Nationalities or religious or political groups
 '''
 ENTITIES_TYPES = {'FAC', 'EVENT', 'PERSON', 'ORG', 'PRODUCT', 'GPE', 'WORK_OF_ART', 'LAW', 'LOC', 'LANGUAGE'}
+COLOR_MAP = {entity: color for entity, color in zip(ENTITIES_TYPES, sns.color_palette('Set3', len(ENTITIES_TYPES)))}
 
 def load_texts(file_path):
     f = open(file_path, "r", encoding="utf8")
@@ -166,7 +167,8 @@ def plot_heatmap(df, output_file, title):
     plt.close()
 
 def plot_barchart(df, output_file, title):
-    ax = sns.barplot(x=df.columns[0], y=df.columns[1], data=df)
+    colors = [COLOR_MAP.get(value, 'gray') for value in df.iloc[:, 0]]
+    ax = sns.barplot(x=df.columns[0], y=df.columns[1], data=df, palette=colors)
     for p in ax.patches:
         ax.annotate(f'{int(p.get_height())}', (p.get_x() + p.get_width() / 2, p.get_height()), ha='center', va='bottom')
     ax.tick_params(axis='x', labelsize=6)
