@@ -1,0 +1,30 @@
+The embedding_extractor.py Script
+=================================
+The embedding_extractor.py script loads the dataset generated in part 2a and creates embeddings for the masked sentences.
+The encoding is done using the bert-base-cased model. Each embedding is 768 numbers long, according to the model settings.
+For more information about the model, read read: https://huggingface.co/bert-base-cased
+
+Notes: The extraction of embeddings for the complete dataset takes a long time (it took me approximately 3 hours).
+
+How to run the script?
+======================
+In the command prompt, type: python embedding_extractor.py <path to dataset>.
+for example: python embedding_extractor.py C:\Users\User\Documents\data.csv
+
+Script output
+=============
+* The progress will be logged to the console.
+* The embeddings will be written to a file named embeddings.out.
+The first number in each row is the ID of the entry in the dataset. The rest of the row consists of a 768-long embedding of the sentence.
+
+Script configurations
+=====================
+You can change the model type (for example, to bert-large-cased) by modifying the BERT_MODEL constant.
+
+Environment
+===========
+The scripts were tested in the following config:
+OS: Windows
+Python version: 3.10.8
+Transformers version: 4.24.0
+Torch version: 1.13.0+cpu
