@@ -97,10 +97,15 @@ def extract_probs(sentences_data):
 
     The function assumes each sentence contains at least one entity
 
-    Note that while all entries in pairs_prob are i.i.d, the case is not the same for entities_prob is not.
+    Note 1: while all entries in pairs_prob are i.i.d, the case is not the same for entities_prob is not.
     A basic example to illustrate why:
     if we have just one pair (x,y), pairs_prob[(x,y)] = 1, but entities_prob[x] = entities_prob[y] = 1.
     So, x and y are not independent - they are dependent on each other.
+
+    Note 2: Entities that appear alone in a text will be considered to be paired with a "null entity".
+    For example, in the sentence "Rina likes Rex", the relationship between "Rina" and "Rex" is considered.
+    However, in the sentence "Rina is nice", the relationship between "Rina" and the "null entity" is considered.
+    This captures the fact that "Rina" can appear alone in a sentence, not always alongside "Rex".
     '''
     entities_prob = Counter()
     pairs_prob = Counter()
@@ -232,6 +237,13 @@ def calc_mi_score(ent1, ent2, entities_prob, pairs_prob):
            p_ent1_1_p_ent2_1 * math.log2((p_ent1_1_p_ent2_1 + MI_EPSILON) / (p_ent1_1 * p_ent2_1))
 
 def calc_pmi_score(ent1, ent2, entities_count, pairs_count, n_entities, n_pairs):
+    '''
+    Returns the PMI scores between ent1 and ent2.
+    If the observed co-occurrence is lower than the expected co-occurrence, the PMI score will be negative,
+    indicating a lower than expected association between the events.
+    Conversely, if the observed co-occurrence is higher than expected, the PMI score will be positive,
+    indicating a higher than expected association.
+    '''
     ent1, ent2 = (ent1, ent2) if ent1 < ent2 else (ent2, ent1)  # Keep lexicographic order
 
     p_ent1 = entities_count[ent1] / n_entities
