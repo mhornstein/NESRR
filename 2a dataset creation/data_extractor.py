@@ -13,6 +13,8 @@ import csv
 from itertools import combinations
 import sys
 
+random.seed(42)
+
 if len(sys.argv) == 1:
     raise ValueError("Path to WikiText-103 dataset missing")
 else:
@@ -182,8 +184,8 @@ def plot_barchart(df, output_file, title):
     plt.clf()
     plt.close()
 
-def plot_kde(s, output_file, title):
-    sns.kdeplot(data=s)
+def plot_hist(s, output_file, title):
+    sns.histplot(data=s, bins=12, kde=True)
     plt.title(title)
     plt.savefig(output_file)
     plt.clf()
@@ -292,12 +294,12 @@ def plot_stats(entities_count, labels_count, pairs_count, pairs_labels_count, ou
     # entities
     entities_df = count_to_df(entities_count, ['entity', 'count'])
     entities_df.to_csv(f'{output_dir}\\entities_count.csv', index=False)
-    plot_kde(entities_df['count'], f'{output_dir}\\entities_count.png', "Entities count")
+    plot_hist(entities_df['count'], f'{output_dir}\\entities_count.png', "Entities count")
 
     # entities pairs
     pairs_df = pair_count_to_df(pairs_count, ['ent1', 'ent2', 'count'])
     pairs_df.to_csv(f'{output_dir}\\pairs_count.csv', index=False)
-    plot_kde(pairs_df['count'], f'{output_dir}\\pairs_count.png', "Pairs count")
+    plot_hist(pairs_df['count'], f'{output_dir}\\pairs_count.png', "Pairs count")
 
     # labels
     labels_df = count_to_df(labels_count, ['label', 'count'])
