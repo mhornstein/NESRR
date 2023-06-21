@@ -231,10 +231,21 @@ def calc_mi_score(ent1, ent2, entities_prob, pairs_prob):
            p_ent1_1_p_ent2_0 * math.log2((p_ent1_1_p_ent2_0 + MI_EPSILON) / (p_ent1_1 * p_ent2_0)) + \
            p_ent1_1_p_ent2_1 * math.log2((p_ent1_1_p_ent2_1 + MI_EPSILON) / (p_ent1_1 * p_ent2_1))
 
-def create_dataset(sentences_data, entities_prob, pairs_prob, output_file):
+def calc_pmi_score(ent1, ent2, entities_count, pairs_count, n_entities, n_pairs):
+    ent1, ent2 = (ent1, ent2) if ent1 < ent2 else (ent2, ent1)  # Keep lexicographic order
+
+    p_ent1 = entities_count[ent1] / n_entities
+    p_ent2 = entities_count[ent2] / n_entities
+    p_ent1_ent2 = pairs_count[(ent1, ent2)] / n_pairs
+
+    return math.log2(p_ent1_ent2) / (p_ent1 * p_ent2)
+
+def create_dataset(sentences_data, entities_prob, pairs_prob, entities_count, pairs_count, output_file):
     csvfile = open(output_file, 'w', newline='', encoding='utf8')
     writer = csv.writer(csvfile)
-    writer.writerow(['sent_id', 'sent', 'masked_sent', 'ent1', 'label1', 'ent2', 'label2', 'mi_score'])
+    writer.writerow(['sent_id', 'sent', 'masked_sent', 'ent1', 'label1', 'ent2', 'label2', 'mi_score', 'pmi_score'])
+    n_entities = sum(entities_count.values())
+    n_pairs = sum(pairs_count.values())
 
     for sent_id in sorted(list(sentences_data.keys())):
         sent_data = sentences_data[sent_id]
@@ -242,6 +253,7 @@ def create_dataset(sentences_data, entities_prob, pairs_prob, output_file):
         ent1, label1 = sent_data.entities[0]
         ent2, label2 = sent_data.entities[1]
         mi_score = calc_mi_score(ent1, ent2, entities_prob, pairs_prob) # mi score required the lexicographic order as present in the counts
+        pmi_score = calc_pmi_score(ent1, ent2, entities_count, pairs_count, n_entities, n_pairs)
 
         # masking
         if sent.find(ent1) > sent.find(ent2): # switch entities order to fit the sentence order
@@ -256,7 +268,7 @@ def create_dataset(sentences_data, entities_prob, pairs_prob, output_file):
 
         masked_sent = sent[0:s1] + MASK_LABEL + sent[e1:s2] + MASK_LABEL + sent[e2:]
 
-        entry = [sent_id, sent, masked_sent, ent1, label1, ent2, label2, mi_score]
+        entry = [sent_id, sent, masked_sent, ent1, label1, ent2, label2, mi_score, pmi_score]
         writer.writerow(entry)
 
     csvfile.close()
@@ -310,6 +322,8 @@ if __name__ == '__main__':
     texts = load_texts(input_file) # We load all texts together so we will process all sentences using Spacy all at once (this will speed things up). Reference: https://github.com/explosion/spaCy/discussions/8402
     print(f'Total lines extracted (containing one sentence or more): {len(texts)}')
 
+    # Step 1: collect measurements according to the entire data
+
     sentences_data = text_to_sentence_data(texts)
 
     entities_count, labels_count, pairs_count, pairs_labels_count = extract_sentences_stats(sentences_data)
@@ -317,6 +331,8 @@ if __name__ == '__main__':
 
     entities_prob, pairs_prob = extract_probs(sentences_data)
     validate_probability(entities_prob, pairs_prob)
+
+    # Step 2: Create the sample: sample a subset of the relevant sentences + sample pairs of entities in this sentences
 
     filtered_entities_set = {key for key, value in entities_count.items() if value >= K}
     for sentence_data in sentences_data.values():
@@ -328,13 +344,15 @@ if __name__ == '__main__':
     sentences_data = sample_sentences(sentences_data, N)
     sample_entities_in_sentences(sentences_data)
 
-    entities_count, labels_count, pairs_count, pairs_labels_count = extract_sentences_stats(sentences_data)
-    assert sum(entities_count.values()) == 2 * N
-    assert sum(labels_count.values()) == 2 * N
-    assert sum(pairs_count.values()) == N
-    assert sum(pairs_labels_count.values()) == 2 * N
-    plot_stats(entities_count, labels_count, pairs_count, pairs_labels_count, output_dir='sampled_sentences_stats')
+    sample_entities_count, sample_labels_count, sample_pairs_count, sample_pairs_labels_count = extract_sentences_stats(sentences_data)
+    assert sum(sample_entities_count.values()) == 2 * N
+    assert sum(sample_labels_count.values()) == 2 * N
+    assert sum(sample_pairs_count.values()) == N
+    assert sum(sample_pairs_labels_count.values()) == 2 * N
+    plot_stats(sample_entities_count, sample_labels_count, sample_pairs_count, sample_pairs_labels_count, output_dir='sampled_sentences_stats')
 
-    create_dataset(sentences_data, entities_prob, pairs_prob, DATASET_FILE)
+    # Step 3: create the dataset according to the samples and the measurements taken
+
+    create_dataset(sentences_data, entities_prob, pairs_prob, entities_count, pairs_count, DATASET_FILE)
 
     print(f"Dataset creation total time: {time.time() - start_time} seconds")
