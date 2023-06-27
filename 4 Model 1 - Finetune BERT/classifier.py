@@ -16,12 +16,6 @@ BERT_MODEL = 'bert-base-cased'
 
 ####################
 
-def create_df(data_file, mi_transformation):
-    df = pd.read_csv(data_file)
-    df['mi_score'] = transform_mi(df['mi_score'], mi_transformation)
-    df = df.set_index('sent_id')
-    return df
-
 def create_data_loader(tokenizer, X, y, max_length, batch_size, shuffle):
     tokens = tokenizer.batch_encode_plus(X.tolist(), max_length=max_length, pad_to_max_length=True, truncation=True, return_tensors='pt')
 
@@ -35,15 +29,31 @@ def create_data_loader(tokenizer, X, y, max_length, batch_size, shuffle):
 
     return dataloader
 
+def score_to_label(y_train, y_tmp, score_threshold_type, score_threshold_value):
+    train_description = y_train.describe()
+    if score_threshold_type == 'percentile':
+        precentile_key = f'{int(score_threshold_value * 100)}%'
+        treshold = train_description[precentile_key]
+    elif score_threshold_type == 'std_dist':
+        mean, std = train_description['mean'], train_description['std']
+        treshold = mean + score_threshold_value * std
+    else:
+        raise ValueError(f'Unknown score_threshold_type: {score_threshold_type}')
+
+    y_train = np.where(y_train < treshold, 0, 1)
+    y_tmp = np.where(y_tmp < treshold, 0, 1)
+
+    return y_train, y_tmp
+
 if __name__ == '__main__':
     total_start_time = time.time()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     input_file = '../data/dummy/dummy_data.csv'
-    score = 'mi'
-    score_threshold_type = 'Precentiles'
-    score_threshold_value = 0.2
+    score = 'pmi_score' # can be either mi_score or pmi_score
+    score_threshold_type = 'percentile' # can be either percentile or std_dist
+    score_threshold_value = 0.75
     learning_rate=0.01
     batch_size=64
     num_epochs=20
@@ -61,12 +71,15 @@ if __name__ == '__main__':
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    """
+
     # Preparing the data
-    df = create_df(input_file, mi_transformation)
-    X_train, X_tmp, y_train, y_tmp = train_test_split(df['masked_sent'], df['mi_score'], random_state=42, test_size=0.3)
+    df = pd.read_csv(input_file).set_index('sent_id')
+    X_train, X_tmp, y_train, y_tmp = train_test_split(df['masked_sent'], df[score], random_state=42, test_size=0.3)
+    y_train, y_tmp = score_to_label(y_train, y_tmp, score_threshold_type, score_threshold_value)
+
     X_val, X_test, y_val, y_test = train_test_split(X_tmp, y_tmp, random_state=42, test_size=0.5)
 
+    """
     tokenizer = BertTokenizerFast.from_pretrained(BERT_MODEL)
     max_length = max([len(s.split()) for s in df['masked_sent']])
     train_dataloader = create_data_loader(tokenizer, X_train, y_train, max_length, batch_size, shuffle=True)
