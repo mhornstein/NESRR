@@ -1,21 +1,3 @@
-"""
-This script trains the BERT model for a regression task focused on predicting the mutual information score between two masked entities within a sentence.
-
-Usage:
-  regressor.py --input_file=<file> [--mi_trans=<mi_transformation>] [--output_dir=<directory>] [--epochs=<count>] [--batch_size=<size>] [--lr=<rate>]
-  regressor.py (-h | --help)
-
-Options:
-  -h --help                    Show this screen.
-  --input_file=<file>          Path to the dataset file.
-  --mi_trans=<mi_transformation>  The transformation to apply for the mutual information scores.
-                                 Available options: None, minmax, ln, sqrt. [default: None]
-  --output_dir=<directory>     Path to the directory to write the results. [default: ./results]
-  --epochs=<count>             Number of epochs for training. [default: 10]
-  --batch_size=<size>          Batch size. [default: 32]
-  --lr=<rate>                  Learning rate for training. [default: 1e-5]
-"""
-
 from sklearn.model_selection import train_test_split
 from transformers import BertConfig, BertTokenizerFast, BertForSequenceClassification
 from transformers.optimization import AdamW
@@ -26,7 +8,6 @@ import warnings
 import os
 warnings.filterwarnings("ignore", category=FutureWarning) # Disable the warning
 import sys
-from docopt import docopt
 
 sys.path.append('../')
 from common.regressor_util import *
@@ -59,28 +40,28 @@ if __name__ == '__main__':
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Get command line arguments
-    arguments = docopt(__doc__)
+    input_file = '../data/dummy/dummy_data.csv'
+    score = 'mi'
+    score_threshold_type = 'Precentiles'
+    score_threshold_value = 0.2
+    learning_rate=0.01
+    batch_size=64
+    num_epochs=20
+    output_dir='results'
 
-    input_file = arguments['--input_file']
-    mi_transformation = arguments['--mi_trans']
-    output_dir = arguments['--output_dir']
-    num_epochs = int(arguments['--epochs'])
-    batch_size = int(arguments['--batch_size'])
-    learning_rate = float(arguments['--lr'])
-
-    print("Running regression task with the following arguments:")
-    print(f"Input file: {input_file}")
-    print(f"MI transformation: {mi_transformation}")
-    print(f"Output directory: {output_dir}")
-    print(f"Epochs: {num_epochs}")
-    print(f"Batch size: {batch_size}")
-    print(f"Learning rate: {learning_rate}")
+    print("input_file:", input_file)
+    print("score:", score)
+    print("score_threshold_type:", score_threshold_type)
+    print("score_threshold_value:", score_threshold_value)
+    print("learning_rate:", learning_rate)
+    print("batch_size:", batch_size)
+    print("num_epochs:", num_epochs)
+    print("output_dir:", output_dir)
     print()
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-
+    """
     # Preparing the data
     df = create_df(input_file, mi_transformation)
     X_train, X_tmp, y_train, y_tmp = train_test_split(df['masked_sent'], df['mi_score'], random_state=42, test_size=0.3)
@@ -172,3 +153,4 @@ if __name__ == '__main__':
 
     total_time = time.time() - total_start_time
     print(f'Done. total time: {total_time} seconds')
+    """
