@@ -186,12 +186,13 @@ if __name__ == '__main__':
 
     test_classification_report = classification_report(all_test_targets, all_test_predictions, zero_division=1)
 
-    out_df.to_csv(f'{output_dir}/test_predictions_results.csv', index=True)
-    with open(f'{output_dir}/report.txt', 'w') as file:
-        file.write(f'Average test loss: {avg_test_loss}.\n')
-        file.write(f'Test classification report:\n')
-        file.write(test_classification_report)
-
     total_time = time.time() - total_start_time
     print(f'Done. total time: {total_time} seconds')
+
+    out_df.to_csv(f'{output_dir}/test_predictions_results.csv', index=True)
+    with open(f'{output_dir}/report.txt', 'w') as file:
+        file.write(f'Total time: {total_time}.\n\n')
+        file.write(f'Test average loss: {avg_test_loss}.\n')
+        file.write(f'Test classification report:\n')
+        file.write(test_classification_report)
 
