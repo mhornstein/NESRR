@@ -9,6 +9,7 @@ import os
 warnings.filterwarnings("ignore", category=FutureWarning) # Disable the warning
 import sys
 from sklearn.metrics import accuracy_score
+from sklearn.metrics import classification_report
 
 sys.path.append('../')
 from common.regressor_util import *
@@ -62,7 +63,7 @@ if __name__ == '__main__':
     score_threshold_value = 0.75
     learning_rate=0.01
     batch_size=64
-    num_epochs=3
+    num_epochs=1
     output_dir='results'
 
     print("input_file:", input_file)
@@ -151,6 +152,8 @@ if __name__ == '__main__':
     print('Start testing...')
 
     model.eval()
+    all_test_targets = []
+    all_test_predictions = []
 
     out_df = pd.DataFrame(columns=['target_label', 'predicted_label', 'is_correct',
                                    'ent1', 'label1', 'ent2', 'label2', 'masked_sent'])
@@ -161,6 +164,9 @@ if __name__ == '__main__':
             test_predictions = logit_to_predicted_label(test_outputs.logits)
             is_correct = test_targets == test_predictions
             test_total_loss += test_outputs.loss.item()
+
+            all_test_targets += test_targets.tolist()
+            all_test_predictions += test_predictions.tolist()
 
             batch_results = pd.DataFrame({'sent_ids': test_sent_ids.squeeze().numpy(),
                                           'target_label': test_targets.squeeze().numpy(),
@@ -178,13 +184,14 @@ if __name__ == '__main__':
 
     avg_test_loss = test_total_loss / len(test_dataloader)
 
-    """
+    test_classification_report = classification_report(all_test_targets, all_test_predictions, zero_division=1)
 
     out_df.to_csv(f'{output_dir}/test_predictions_results.csv', index=True)
-    with open(f'{output_dir}/test_report.txt', 'w') as file:
-        file.write(f'Average test loss: {avg_test_loss}')
+    with open(f'{output_dir}/report.txt', 'w') as file:
+        file.write(f'Average test loss: {avg_test_loss}.\n')
+        file.write(f'Test classification report:\n')
+        file.write(test_classification_report)
 
     total_time = time.time() - total_start_time
     print(f'Done. total time: {total_time} seconds')
-    
-    """
+
