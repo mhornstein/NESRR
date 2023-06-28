@@ -8,6 +8,7 @@ import warnings
 import os
 warnings.filterwarnings("ignore", category=FutureWarning) # Disable the warning
 import sys
+from sklearn.metrics import accuracy_score
 
 sys.path.append('../')
 from common.regressor_util import *
@@ -28,6 +29,11 @@ def create_data_loader(tokenizer, X, y, max_length, batch_size, shuffle):
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
 
     return dataloader
+
+def logit_to_predicted_label(logits):
+    probs = logits.softmax(1)
+    labels = probs.argmax(1)
+    return labels
 
 def score_to_label(y_train, y_tmp, score_threshold_type, score_threshold_value):
     train_description = y_train.describe()
@@ -100,30 +106,42 @@ if __name__ == '__main__':
         start_time = time.time()
         model.train()
         total_loss = 0
+        total_acc = 0
         for sent_ids, input_ids, attention_mask, targets in train_dataloader:
             optimizer.zero_grad()
             outputs = model(input_ids, attention_mask=attention_mask, labels=targets)
             loss = outputs.loss
             total_loss += loss.item()
+            predictions = logit_to_predicted_label(outputs.logits)
+            accuracy = accuracy_score(targets.tolist(), predictions.tolist())
+            total_acc += accuracy
 
             loss.backward()
             optimizer.step()
 
         avg_train_loss = total_loss / len(train_dataloader)
+        avg_train_acc = total_acc / len(train_dataloader)
 
         model.eval()
         val_total_loss = 0
+        val_total_acc = 0
         with torch.no_grad():
             for val_sent_ids, val_input_ids, val_attention_mask, val_targets in validation_dataloader:
                 val_outputs = model(val_input_ids, attention_mask=val_attention_mask, labels=val_targets)
                 val_total_loss += val_outputs.loss.item()
+                val_predictions = logit_to_predicted_label(val_outputs.logits)
+                val_accuracy = accuracy_score(val_targets.tolist(), val_predictions.tolist())
+                val_total_acc += val_accuracy
 
         avg_val_loss = val_total_loss / len(validation_dataloader)
+        avg_val_acc = val_total_acc / len(validation_dataloader)
         epoch_time = time.time() - start_time
 
         result_entry = {'epoch': epoch,
                         'avg_train_loss': avg_train_loss,
                         'avg_val_loss': avg_val_loss,
+                        'avg_train_acc': avg_val_acc,
+                        'avg_val_acc': avg_val_acc,
                         'epoch_time': epoch_time}
         results.append(result_entry)
         print('\n'.join(key + ': ' + str(value) for key, value in result_entry.items()) + '\n')
