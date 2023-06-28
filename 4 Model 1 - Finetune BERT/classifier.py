@@ -148,25 +148,24 @@ if __name__ == '__main__':
 
     results_to_files(results_dict=results, output_dir=output_dir)
 
-    """
-    
     print('Start testing...')
 
     model.eval()
 
-    out_df = pd.DataFrame(columns=['target_mi', 'predicted_mi', 'abs_mi_err',
+    out_df = pd.DataFrame(columns=['target_label', 'predicted_label', 'is_correct',
                                    'ent1', 'label1', 'ent2', 'label2', 'masked_sent'])
     test_total_loss = 0
     with torch.no_grad():
         for test_sent_ids, test_input_ids, test_attention_mask, test_targets in test_dataloader:
             test_outputs = model(test_input_ids, attention_mask=test_attention_mask, labels=test_targets)
-            absolute_errors = torch.abs(test_outputs.logits - test_targets)
+            test_predictions = logit_to_predicted_label(test_outputs.logits)
+            is_correct = test_targets == test_predictions
             test_total_loss += test_outputs.loss.item()
 
             batch_results = pd.DataFrame({'sent_ids': test_sent_ids.squeeze().numpy(),
-                                          'target_mi': test_targets.squeeze().numpy(),
-                                          'predicted_mi': test_outputs.logits.squeeze().numpy(),
-                                          'abs_mi_err': absolute_errors.squeeze().numpy()})
+                                          'target_label': test_targets.squeeze().numpy(),
+                                          'predicted_label': test_predictions.squeeze().numpy(),
+                                          'is_correct': is_correct.squeeze().numpy()})
             batch_results = batch_results.set_index('sent_ids', drop=True)
             batch_results.index.name = None  # remove index column name
 
@@ -178,6 +177,8 @@ if __name__ == '__main__':
             out_df = out_df.append(batch_df, ignore_index=False)
 
     avg_test_loss = test_total_loss / len(test_dataloader)
+
+    """
 
     out_df.to_csv(f'{output_dir}/test_predictions_results.csv', index=True)
     with open(f'{output_dir}/test_report.txt', 'w') as file:
