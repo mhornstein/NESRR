@@ -22,7 +22,7 @@ def create_data_loader(tokenizer, X, y, max_length, batch_size, shuffle):
     sent_ids = torch.tensor(X.index, dtype=torch.int64).unsqueeze(dim=1).to(device)
     ids = tokens['input_ids'].to(device)
     mask = tokens['attention_mask'].to(device)
-    y_tensor = torch.tensor(y.values.reshape(-1, 1), dtype=torch.float32).to(device)
+    y_tensor = torch.tensor(y, dtype=torch.int64).to(device)
 
     dataset = TensorDataset(sent_ids, ids, mask, y_tensor)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
@@ -56,7 +56,7 @@ if __name__ == '__main__':
     score_threshold_value = 0.75
     learning_rate=0.01
     batch_size=64
-    num_epochs=20
+    num_epochs=3
     output_dir='results'
 
     print("input_file:", input_file)
@@ -79,7 +79,6 @@ if __name__ == '__main__':
 
     X_val, X_test, y_val, y_test = train_test_split(X_tmp, y_tmp, random_state=42, test_size=0.5)
 
-    """
     tokenizer = BertTokenizerFast.from_pretrained(BERT_MODEL)
     max_length = max([len(s.split()) for s in df['masked_sent']])
     train_dataloader = create_data_loader(tokenizer, X_train, y_train, max_length, batch_size, shuffle=True)
@@ -87,14 +86,14 @@ if __name__ == '__main__':
     test_dataloader = create_data_loader(tokenizer, X_test, y_test, max_length, batch_size, shuffle=False)
 
     # Preparing the model
-    config = BertConfig.from_pretrained(BERT_MODEL, num_labels=1)  # Set num_labels=1 for regression
+    config = BertConfig.from_pretrained(BERT_MODEL, num_labels=2)  # Set num_labels=2 for classification
     model = BertForSequenceClassification(config)
     model.to(device)
 
     optimizer = AdamW(model.parameters(), lr=learning_rate)
 
+    # start training. reference: https://huggingface.co/transformers/v3.2.0/custom_datasets.html
     results = []
-
     print('Start training...')
 
     for epoch in range(1, num_epochs + 1):
@@ -102,11 +101,11 @@ if __name__ == '__main__':
         model.train()
         total_loss = 0
         for sent_ids, input_ids, attention_mask, targets in train_dataloader:
+            optimizer.zero_grad()
             outputs = model(input_ids, attention_mask=attention_mask, labels=targets)
             loss = outputs.loss
             total_loss += loss.item()
 
-            optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
@@ -131,6 +130,8 @@ if __name__ == '__main__':
 
     results_to_files(results_dict=results, output_dir=output_dir)
 
+    """
+    
     print('Start testing...')
 
     model.eval()
@@ -166,4 +167,5 @@ if __name__ == '__main__':
 
     total_time = time.time() - total_start_time
     print(f'Done. total time: {total_time} seconds')
+    
     """
