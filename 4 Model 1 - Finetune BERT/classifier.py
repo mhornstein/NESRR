@@ -68,20 +68,7 @@ def score_to_label(y_train, y_tmp, score_threshold_type, score_threshold_value):
 
     return y_train, y_tmp
 
-if __name__ == '__main__':
-    total_start_time = time.time()
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    input_file = '../data/dummy/dummy_data.csv'
-    score = 'pmi_score' # can be either mi_score or pmi_score
-    score_threshold_type = 'percentile' # can be either percentile or std_dist
-    score_threshold_value = 0.75
-    learning_rate=0.01
-    batch_size=64
-    num_epochs=1
-    output_dir='results'
-
+def run_experiment(input_file, score, score_threshold_type, score_threshold_value, learning_rate, batch_size, num_epochs, output_dir):
     print("input_file:", input_file)
     print("score:", score)
     print("score_threshold_type:", score_threshold_type)
@@ -91,6 +78,8 @@ if __name__ == '__main__':
     print("num_epochs:", num_epochs)
     print("output_dir:", output_dir)
     print()
+
+    total_start_time = time.time()
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -220,3 +209,16 @@ if __name__ == '__main__':
         file.write(f'Test classification report:\n')
         file.write(test_classification_report)
 
+if __name__ == '__main__':
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    input_file = '../data/dummy/dummy_data.csv'
+    score = 'pmi_score' # can be either mi_score or pmi_score
+    score_threshold_type = 'percentile' # can be either percentile or std_dist
+    score_threshold_value = 0.75
+    learning_rate=0.01
+    batch_size=64
+    num_epochs=1
+    output_dir='results'
+
+    run_experiment(input_file, score, score_threshold_type, score_threshold_value, learning_rate, batch_size, num_epochs, output_dir)
