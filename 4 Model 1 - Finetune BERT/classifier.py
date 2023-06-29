@@ -8,7 +8,6 @@ import warnings
 import os
 warnings.filterwarnings("ignore", category=FutureWarning) # Disable the warning
 import sys
-from sklearn.metrics import accuracy_score
 from sklearn.metrics import classification_report
 
 sys.path.append('../')
@@ -32,9 +31,26 @@ def create_data_loader(tokenizer, X, y, max_length, batch_size, shuffle):
     return dataloader
 
 def logit_to_predicted_label(logits):
-    probs = logits.softmax(1)
-    labels = probs.argmax(1)
+    labels = logits.argmax(1)
     return labels
+
+def calc_weight(labels):
+    '''
+    Returns a tensor representing the weights for label 0 and label 1 respectively.
+    for the weights, We want the positive class weight to be inversely proportional to the proportion of positive examples.
+    If there are fewer positive examples, we increase the weight to give more importance to those examples during the loss computation.
+    We use 2 for sclaling.
+    Therefore, if N = #all-samples, P = #positive-samples: 1/ 2 * frequency = 1 / 2 * (P/N) = N / 2 * P
+    The same apply for negative samples.
+    Partial reference: https://forums.fast.ai/t/about-weighted-bceloss/78570/3
+    '''
+    total_examples = len(labels)
+    num_positive = np.sum(labels == 1)
+    num_negative = total_examples - num_positive
+
+    positive_weight = total_examples / (2 * num_positive)
+    negative_weight = total_examples / (2 * num_negative)
+    return torch.tensor([negative_weight, positive_weight], dtype=torch.float32) # dtype of float 32 is the requirement of the weight
 
 def score_to_label(y_train, y_tmp, score_threshold_type, score_threshold_value):
     train_description = y_train.describe()
@@ -97,6 +113,12 @@ if __name__ == '__main__':
     model = BertForSequenceClassification(config)
     model.to(device)
 
+    # Preparing the loss: due to data imbalance, we will use weighted loss function instead of the out-of-the-box BERT's.
+    # reference: https://discuss.huggingface.co/t/class-weights-for-bertforsequenceclassification/1674/6
+    weight = calc_weight(y_train)
+    criterion = nn.CrossEntropyLoss(weight=weight, reduction='mean')
+
+    # Preparing the optimizer
     optimizer = AdamW(model.parameters(), lr=learning_rate)
 
     # start training. reference: https://huggingface.co/transformers/v3.2.0/custom_datasets.html
@@ -107,35 +129,36 @@ if __name__ == '__main__':
         start_time = time.time()
         model.train()
         total_loss = 0
-        total_acc = 0
+        total_good = 0
         for sent_ids, input_ids, attention_mask, targets in train_dataloader:
-            optimizer.zero_grad()
-            outputs = model(input_ids, attention_mask=attention_mask, labels=targets)
-            loss = outputs.loss
+            outputs = model(input_ids, attention_mask=attention_mask)
+            loss = criterion(outputs.logits, targets)
             total_loss += loss.item()
             predictions = logit_to_predicted_label(outputs.logits)
-            accuracy = accuracy_score(targets.tolist(), predictions.tolist())
-            total_acc += accuracy
+            total_good += (predictions == targets).sum().item()
 
+            optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
-        avg_train_loss = total_loss / len(train_dataloader)
-        avg_train_acc = total_acc / len(train_dataloader)
+        total = len(X_train)
+        avg_train_loss = total_loss / total
+        avg_train_acc = total_good / total
 
         model.eval()
         val_total_loss = 0
-        val_total_acc = 0
+        total_val_good = 0
         with torch.no_grad():
             for val_sent_ids, val_input_ids, val_attention_mask, val_targets in validation_dataloader:
-                val_outputs = model(val_input_ids, attention_mask=val_attention_mask, labels=val_targets)
-                val_total_loss += val_outputs.loss.item()
+                val_outputs = model(val_input_ids, attention_mask=val_attention_mask)
+                val_total_loss += criterion(val_outputs.logits, val_targets).item()
                 val_predictions = logit_to_predicted_label(val_outputs.logits)
-                val_accuracy = accuracy_score(val_targets.tolist(), val_predictions.tolist())
-                val_total_acc += val_accuracy
+                total_val_good += (val_predictions == val_targets).sum().item()
 
-        avg_val_loss = val_total_loss / len(validation_dataloader)
-        avg_val_acc = val_total_acc / len(validation_dataloader)
+        total = len(X_val)
+        avg_val_loss = val_total_loss / total
+        avg_val_acc = total_val_good / total
+
         epoch_time = time.time() - start_time
 
         result_entry = {'epoch': epoch,
@@ -160,10 +183,11 @@ if __name__ == '__main__':
     test_total_loss = 0
     with torch.no_grad():
         for test_sent_ids, test_input_ids, test_attention_mask, test_targets in test_dataloader:
-            test_outputs = model(test_input_ids, attention_mask=test_attention_mask, labels=test_targets)
+            test_outputs = model(test_input_ids, attention_mask=test_attention_mask)
+            test_total_loss += criterion(test_outputs.logits, test_targets).item()
+            
             test_predictions = logit_to_predicted_label(test_outputs.logits)
             is_correct = test_targets == test_predictions
-            test_total_loss += test_outputs.loss.item()
 
             all_test_targets += test_targets.tolist()
             all_test_predictions += test_predictions.tolist()
@@ -182,7 +206,7 @@ if __name__ == '__main__':
 
             out_df = out_df.append(batch_df, ignore_index=False)
 
-    avg_test_loss = test_total_loss / len(test_dataloader)
+    avg_test_loss = test_total_loss / len(X_test)
 
     test_classification_report = classification_report(all_test_targets, all_test_predictions, zero_division=1)
 
