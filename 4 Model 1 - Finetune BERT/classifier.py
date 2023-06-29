@@ -211,14 +211,40 @@ def run_experiment(input_file, score, score_threshold_type, score_threshold_valu
 
 if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    result_dir = 'results'
+
+    if not os.path.exists(result_dir):
+        os.makedirs(result_dir)
+
+    num_epochs = 1
+
+    exp_index = 1
+    experiments_settings_list = []
 
     input_file = '../data/dummy/dummy_data.csv'
-    score = 'pmi_score' # can be either mi_score or pmi_score
-    score_threshold_type = 'percentile' # can be either percentile or std_dist
-    score_threshold_value = 0.75
-    learning_rate=0.01
-    batch_size=64
-    num_epochs=1
-    output_dir='results'
 
-    run_experiment(input_file, score, score_threshold_type, score_threshold_value, learning_rate, batch_size, num_epochs, output_dir)
+    for score in ['mi_score', 'pmi_score']:
+        for score_threshold_type in ['percentile', 'std_dist']:
+            score_thresholds = [0.25, 0.5, 0.75] if score_threshold_type == 'percentile' else [-2, -1, 1, 2]
+            for score_threshold_value in score_thresholds:
+                for learning_rate in [0.01, 0.05, 0.001, 0.005]:
+                    for batch_size in [256, 128, 64]:
+                        output_dir = f'{result_dir}/{exp_index}'
+                        run_experiment(input_file, score, score_threshold_type, score_threshold_value, learning_rate,
+                                       batch_size, num_epochs, output_dir)
+                        experiment_settings = {
+                                                'exp_index': exp_index,
+                                                'score': score,
+                                                'score_threshold_type': score_threshold_type,
+                                                'score_threshold_value': score_threshold_value,
+                                                'learning_rate': learning_rate,
+                                                'batch_size': batch_size,
+                                                'num_epochs': num_epochs
+                                               }
+                        experiments_settings_list.append(experiment_settings)
+                        exp_index += 1
+    settings_df = pd.DataFrame(experiments_settings_list).set_index('exp_index')
+    settings_df.to_csv(f"{result_dir}/experiments_settings.csv")
+
+
+
