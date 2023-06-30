@@ -153,7 +153,7 @@ def run_experiment(input_file, score, score_threshold_type, score_threshold_valu
         result_entry = {'epoch': epoch,
                         'avg_train_loss': avg_train_loss,
                         'avg_val_loss': avg_val_loss,
-                        'avg_train_acc': avg_val_acc,
+                        'avg_train_acc': avg_train_acc,
                         'avg_val_acc': avg_val_acc,
                         'epoch_time': epoch_time}
         results.append(result_entry)
@@ -203,11 +203,21 @@ def run_experiment(input_file, score, score_threshold_type, score_threshold_valu
     print(f'Done. total time: {total_time} seconds')
 
     out_df.to_csv(f'{output_dir}/test_predictions_results.csv', index=True)
+
+    experiment_settings = {
+        'score': score,
+        'score_threshold_type': score_threshold_type,
+        'score_threshold_value': score_threshold_value,
+        'learning_rate': learning_rate,
+        'batch_size': batch_size,
+        'num_epochs': num_epochs
+    }
     with open(f'{output_dir}/report.txt', 'w') as file:
         file.write(f'Total time: {total_time}.\n\n')
         file.write(f'Test average loss: {avg_test_loss}.\n')
         file.write(f'Test classification report:\n')
         file.write(test_classification_report)
+        file.write(f'Settings:\n{experiment_settings}')
 
 if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -216,12 +226,12 @@ if __name__ == '__main__':
     if not os.path.exists(result_dir):
         os.makedirs(result_dir)
 
-    num_epochs = 1
+    num_epochs = 10
 
     exp_index = 1
     experiments_settings_list = []
 
-    input_file = '../data/dummy/dummy_data.csv'
+    input_file = '../data/data.csv'
 
     for score in ['mi_score', 'pmi_score']:
         for score_threshold_type in ['percentile', 'std_dist']:
