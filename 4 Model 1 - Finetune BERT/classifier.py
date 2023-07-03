@@ -1,5 +1,5 @@
 from sklearn.model_selection import train_test_split
-from transformers import BertConfig, BertTokenizerFast, BertForSequenceClassification
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
 from transformers.optimization import AdamW
 import torch
 from torch.utils.data import TensorDataset, DataLoader
@@ -13,7 +13,7 @@ from sklearn.metrics import classification_report
 sys.path.append('../')
 from common.regressor_util import *
 
-BERT_MODEL = 'bert-base-cased'
+BERT_MODEL = 'bert-base-uncased'
 
 ####################
 
@@ -91,15 +91,14 @@ def run_experiment(input_file, score, score_threshold_type, score_threshold_valu
 
     X_val, X_test, y_val, y_test = train_test_split(X_tmp, y_tmp, random_state=42, test_size=0.5)
 
-    tokenizer = BertTokenizerFast.from_pretrained(BERT_MODEL)
+    tokenizer = AutoTokenizer.from_pretrained(BERT_MODEL)
     max_length = max([len(s.split()) for s in df['masked_sent']])
     train_dataloader = create_data_loader(tokenizer, X_train, y_train, max_length, batch_size, shuffle=True)
     validation_dataloader = create_data_loader(tokenizer, X_val, y_val, max_length, batch_size, shuffle=False)
     test_dataloader = create_data_loader(tokenizer, X_test, y_test, max_length, batch_size, shuffle=False)
 
     # Preparing the model
-    config = BertConfig.from_pretrained(BERT_MODEL, num_labels=2)  # Set num_labels=2 for classification
-    model = BertForSequenceClassification(config)
+    model = AutoModelForSequenceClassification.from_pretrained(BERT_MODEL, num_labels=2)
     model.to(device)
 
     # Preparing the loss: due to data imbalance, we will use weighted loss function instead of the out-of-the-box BERT's.
