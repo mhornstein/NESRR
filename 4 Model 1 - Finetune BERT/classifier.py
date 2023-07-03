@@ -13,7 +13,7 @@ from sklearn.metrics import classification_report
 sys.path.append('../')
 from common.regressor_util import *
 
-BERT_MODEL = 'bert-base-uncased'
+BERT_MODEL = 'bert-base-uncased' #  'distilbert-base-uncased'
 
 ####################
 
@@ -111,14 +111,15 @@ def run_experiment(input_file, score, score_threshold_type, score_threshold_valu
 
     # start training. reference: https://huggingface.co/transformers/v3.2.0/custom_datasets.html
     results = []
-    print('Start training...')
 
     for epoch in range(1, num_epochs + 1):
+        print(f'Starting Epoch: {epoch}/{num_epochs}\n')
         start_time = time.time()
         model.train()
         total_loss = 0
         total_good = 0
-        for sent_ids, input_ids, attention_mask, targets in train_dataloader:
+        for batch_i, (sent_ids, input_ids, attention_mask, targets) in enumerate(train_dataloader, start=1):
+            print(f'Training batch: {batch_i}/{len(train_dataloader)}')
             outputs = model(input_ids, attention_mask=attention_mask)
             loss = criterion(outputs.logits, targets)
             total_loss += loss.item()
@@ -137,7 +138,8 @@ def run_experiment(input_file, score, score_threshold_type, score_threshold_valu
         val_total_loss = 0
         total_val_good = 0
         with torch.no_grad():
-            for val_sent_ids, val_input_ids, val_attention_mask, val_targets in validation_dataloader:
+            for batch_i, (val_sent_ids, val_input_ids, val_attention_mask, val_targets) in enumerate(validation_dataloader, start=1):
+                print(f'Validation batch: {batch_i}/{len(validation_dataloader)}')
                 val_outputs = model(val_input_ids, attention_mask=val_attention_mask)
                 val_total_loss += criterion(val_outputs.logits, val_targets).item()
                 val_predictions = logit_to_predicted_label(val_outputs.logits)
@@ -156,6 +158,7 @@ def run_experiment(input_file, score, score_threshold_type, score_threshold_valu
                         'avg_val_acc': avg_val_acc,
                         'epoch_time': epoch_time}
         results.append(result_entry)
+        print('Epoch report:')
         print('\n'.join(key + ': ' + str(value) for key, value in result_entry.items()) + '\n')
 
     results_to_files(results_dict=results, output_dir=output_dir)
@@ -170,7 +173,8 @@ def run_experiment(input_file, score, score_threshold_type, score_threshold_valu
                                    'ent1', 'label1', 'ent2', 'label2', 'masked_sent'])
     test_total_loss = 0
     with torch.no_grad():
-        for test_sent_ids, test_input_ids, test_attention_mask, test_targets in test_dataloader:
+        for batch_i, (test_sent_ids, test_input_ids, test_attention_mask, test_targets) in enumerate(test_dataloader, start=1):
+            print(f'Testing batch: {batch_i}/{len(test_dataloader)}')
             test_outputs = model(test_input_ids, attention_mask=test_attention_mask)
             test_total_loss += criterion(test_outputs.logits, test_targets).item()
             
@@ -199,7 +203,7 @@ def run_experiment(input_file, score, score_threshold_type, score_threshold_valu
     test_classification_report = classification_report(all_test_targets, all_test_predictions, zero_division=1)
 
     total_time = time.time() - total_start_time
-    print(f'Done. total time: {total_time} seconds')
+    print(f'Done. total time: {total_time} seconds.\n')
 
     out_df.to_csv(f'{output_dir}/test_predictions_results.csv', index=True)
 
@@ -237,7 +241,7 @@ if __name__ == '__main__':
             score_thresholds = [0.25, 0.5, 0.75] if score_threshold_type == 'percentile' else [-2, -1, 1, 2]
             for score_threshold_value in score_thresholds:
                 for learning_rate in [0.01, 0.05, 0.001, 0.005]:
-                    for batch_size in [256, 128, 64]:
+                    for batch_size in [64, 128, 256]:
                         output_dir = f'{result_dir}/{exp_index}'
                         run_experiment(input_file, score, score_threshold_type, score_threshold_value, learning_rate,
                                        batch_size, num_epochs, output_dir)
