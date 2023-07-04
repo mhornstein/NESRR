@@ -220,7 +220,7 @@ if __name__ == '__main__':
     exp_index = 1
     experiments_settings_list = []
 
-    input_file = '../data/data.csv'
+    input_file = '../data/dummy/dummy_data.csv'
 
     for score in ['mi_score', 'pmi_score']:
         for score_threshold_type in ['percentile', 'std_dist']:
