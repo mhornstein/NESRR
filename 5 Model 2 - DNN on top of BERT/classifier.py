@@ -17,18 +17,16 @@ BERT_MODEL = 'bert-base-uncased' #  'distilbert-base-uncased'
 
 ####################
 
-def create_data_loader(tokenizer, X, y, max_length, batch_size, shuffle):
-    tokens = tokenizer.batch_encode_plus(X.tolist(), max_length=max_length, pad_to_max_length=True, truncation=True, return_tensors='pt')
+def create_df(data_file, embs_file):
+    df = pd.read_csv(data_file)
+    df = df.set_index('sent_id')
 
-    sent_ids = torch.tensor(X.index, dtype=torch.int64).unsqueeze(dim=1).to(device)
-    ids = tokens['input_ids'].to(device)
-    mask = tokens['attention_mask'].to(device)
-    y_tensor = torch.tensor(y, dtype=torch.int64).to(device)
+    embs = pd.read_csv(embs_file, sep=' ', header=None)
+    embs = embs.set_index(embs.columns[0])  # set sentence id as the index of the dataframe
 
-    dataset = TensorDataset(sent_ids, ids, mask, y_tensor)
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
-
-    return dataloader
+    # combine both for a single df
+    df = pd.concat([embs, df], axis=1)
+    return df
 
 def logit_to_predicted_label(logits):
     labels = logits.argmax(1)
@@ -68,8 +66,7 @@ def score_to_label(y_train, y_tmp, score_threshold_type, score_threshold_value):
 
     return y_train, y_tmp
 
-def run_experiment(input_file, score, score_threshold_type, score_threshold_value, learning_rate, batch_size, num_epochs, output_dir):
-    print("input_file:", input_file)
+def run_experiment(input_df, score, score_threshold_type, score_threshold_value, learning_rate, batch_size, num_epochs, output_dir):
     print("score:", score)
     print("score_threshold_type:", score_threshold_type)
     print("score_threshold_value:", score_threshold_value)
@@ -84,6 +81,7 @@ def run_experiment(input_file, score, score_threshold_type, score_threshold_valu
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
+    '''
     # Preparing the data
     df = pd.read_csv(input_file).set_index('sent_id')
     X_train, X_tmp, y_train, y_tmp = train_test_split(df['masked_sent'], df[score], random_state=42, test_size=0.3)
@@ -221,6 +219,8 @@ def run_experiment(input_file, score, score_threshold_type, score_threshold_valu
         file.write(f'Test classification report:\n')
         file.write(test_classification_report)
         file.write(f'Settings:\n{experiment_settings}')
+        
+    '''
 
 if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -234,7 +234,10 @@ if __name__ == '__main__':
     exp_index = 1
     experiments_settings_list = []
 
-    input_file = '../data/data.csv'
+    embeddings_file = '../data/dummy/embeddings_dummy.out' # '../data/embeddings.out'
+    input_file = '../data/dummy/dummy_data.csv' # '../data/data.csv'
+
+    input_df = create_df(input_file, embeddings_file)
 
     for score in ['mi_score', 'pmi_score']:
         for score_threshold_type in ['percentile', 'std_dist']:
@@ -243,7 +246,7 @@ if __name__ == '__main__':
                 for learning_rate in [0.01, 0.05, 0.001, 0.005]:
                     for batch_size in [64, 128, 256]:
                         output_dir = f'{result_dir}/{exp_index}'
-                        run_experiment(input_file, score, score_threshold_type, score_threshold_value, learning_rate,
+                        run_experiment(input_df, score, score_threshold_type, score_threshold_value, learning_rate,
                                        batch_size, num_epochs, output_dir)
                         experiment_settings = {
                                                 'exp_index': exp_index,
