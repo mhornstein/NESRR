@@ -12,7 +12,8 @@ from sklearn.metrics import classification_report
 import random
 
 sys.path.append('../')
-from common.regressor_util import *
+from common.util import *
+from common.classifier_util import *
 
 BERT_MODEL = 'bert-base-uncased' #  'distilbert-base-uncased'
 
@@ -59,22 +60,6 @@ def calc_weight(labels):
     positive_weight = total_examples / (2 * num_positive)
     negative_weight = total_examples / (2 * num_negative)
     return torch.tensor([negative_weight, positive_weight], dtype=torch.float32) # dtype of float 32 is the requirement of the weight
-
-def score_to_label(y_train, y_tmp, score_threshold_type, score_threshold_value):
-    train_description = y_train.describe()
-    if score_threshold_type == 'percentile':
-        precentile_key = f'{int(score_threshold_value * 100)}%'
-        treshold = train_description[precentile_key]
-    elif score_threshold_type == 'std_dist':
-        mean, std = train_description['mean'], train_description['std']
-        treshold = mean + score_threshold_value * std
-    else:
-        raise ValueError(f'Unknown score_threshold_type: {score_threshold_type}')
-
-    y_train = np.where(y_train < treshold, 0, 1)
-    y_tmp = np.where(y_tmp < treshold, 0, 1)
-
-    return y_train, y_tmp
 
 def run_experiment(df, score, score_threshold_type, score_threshold_value, network_config, learning_rate, batch_size, num_epochs, output_dir):
     print("score:", score)
