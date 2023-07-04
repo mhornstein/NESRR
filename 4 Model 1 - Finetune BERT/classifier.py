@@ -55,16 +55,6 @@ def calc_weight(labels):
     return torch.tensor([negative_weight, positive_weight], dtype=torch.float32) # dtype of float 32 is the requirement of the weight
 
 def run_experiment(input_file, score, score_threshold_type, score_threshold_value, learning_rate, batch_size, num_epochs, output_dir):
-    print("input_file:", input_file)
-    print("score:", score)
-    print("score_threshold_type:", score_threshold_type)
-    print("score_threshold_value:", score_threshold_value)
-    print("learning_rate:", learning_rate)
-    print("batch_size:", batch_size)
-    print("num_epochs:", num_epochs)
-    print("output_dir:", output_dir)
-    print()
-
     total_start_time = time.time()
 
     if not os.path.exists(output_dir):
@@ -229,8 +219,6 @@ if __name__ == '__main__':
                 for learning_rate in [0.01, 0.05, 0.001, 0.005]:
                     for batch_size in [64, 128, 256]:
                         output_dir = f'{result_dir}/{exp_index}'
-                        run_experiment(input_file, score, score_threshold_type, score_threshold_value, learning_rate,
-                                       batch_size, num_epochs, output_dir)
                         experiment_settings = {
                                                 'exp_index': exp_index,
                                                 'score': score,
@@ -240,6 +228,10 @@ if __name__ == '__main__':
                                                 'batch_size': batch_size,
                                                 'num_epochs': num_epochs
                                                }
+                        experiment_settings_str = ','.join([f'{key}={value}' for key, value in experiment_settings.items()])
+                        print('running: ' + experiment_settings_str)
+                        run_experiment(input_file, score, score_threshold_type, score_threshold_value, learning_rate,
+                                       batch_size, num_epochs, output_dir)
                         experiments_settings_list.append(experiment_settings)
                         exp_index += 1
     settings_df = pd.DataFrame(experiments_settings_list).set_index('exp_index')
