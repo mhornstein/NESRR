@@ -9,6 +9,7 @@ import os
 warnings.filterwarnings("ignore", category=FutureWarning) # Disable the warning
 import sys
 from sklearn.metrics import classification_report
+import random
 
 sys.path.append('../')
 from common.regressor_util import *
@@ -231,6 +232,9 @@ if __name__ == '__main__':
 
     num_epochs = 10
 
+    networks_config_experiment_count = 5
+    networks_sizes = [64, 128, 256, 512]
+
     exp_index = 1
     experiments_settings_list = []
 
@@ -245,20 +249,22 @@ if __name__ == '__main__':
             for score_threshold_value in score_thresholds:
                 for learning_rate in [0.01, 0.05, 0.001, 0.005]:
                     for batch_size in [64, 128, 256]:
-                        output_dir = f'{result_dir}/{exp_index}'
-                        run_experiment(input_df, score, score_threshold_type, score_threshold_value, learning_rate,
-                                       batch_size, num_epochs, output_dir)
-                        experiment_settings = {
-                                                'exp_index': exp_index,
-                                                'score': score,
-                                                'score_threshold_type': score_threshold_type,
-                                                'score_threshold_value': score_threshold_value,
-                                                'learning_rate': learning_rate,
-                                                'batch_size': batch_size,
-                                                'num_epochs': num_epochs
-                                               }
-                        experiments_settings_list.append(experiment_settings)
-                        exp_index += 1
+                        for i in range(networks_config_experiment_count):
+                            network_config = random.sample(networks_sizes, random.randint(2, 4))
+                            output_dir = f'{result_dir}/{exp_index}'
+                            run_experiment(input_df, score, score_threshold_type, score_threshold_value, learning_rate,
+                                           batch_size, num_epochs, output_dir)
+                            experiment_settings = {
+                                                    'exp_index': exp_index,
+                                                    'score': score,
+                                                    'score_threshold_type': score_threshold_type,
+                                                    'score_threshold_value': score_threshold_value,
+                                                    'learning_rate': learning_rate,
+                                                    'batch_size': batch_size,
+                                                    'num_epochs': num_epochs
+                                                   }
+                            experiments_settings_list.append(experiment_settings)
+                            exp_index += 1
     settings_df = pd.DataFrame(experiments_settings_list).set_index('exp_index')
     settings_df.to_csv(f"{result_dir}/experiments_settings.csv")
 
