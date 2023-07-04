@@ -16,7 +16,16 @@ from common.regressor_util import *
 
 BERT_MODEL = 'bert-base-uncased' #  'distilbert-base-uncased'
 
+BERT_OUTPUT_SHAPE = 768
+
 ####################
+def create_data_loader(X, y, batch_size, shuffle):
+    sent_ids = torch.tensor(X.index, dtype=torch.int64).unsqueeze(dim=1).to(device)
+    X_tensor = torch.tensor(X.values, dtype=torch.float32).to(device)
+    y_tensor = torch.tensor(y.reshape(-1, 1), dtype=torch.float32).to(device)
+    dataset = TensorDataset(sent_ids, X_tensor, y_tensor)
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
+    return dataloader
 
 def create_df(data_file, embs_file):
     df = pd.read_csv(data_file)
@@ -67,7 +76,7 @@ def score_to_label(y_train, y_tmp, score_threshold_type, score_threshold_value):
 
     return y_train, y_tmp
 
-def run_experiment(input_df, score, score_threshold_type, score_threshold_value, network_config, learning_rate, batch_size, num_epochs, output_dir):
+def run_experiment(df, score, score_threshold_type, score_threshold_value, network_config, learning_rate, batch_size, num_epochs, output_dir):
     print("score:", score)
     print("score_threshold_type:", score_threshold_type)
     print("score_threshold_value:", score_threshold_value)
@@ -83,20 +92,16 @@ def run_experiment(input_df, score, score_threshold_type, score_threshold_value,
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    '''
     # Preparing the data
-    df = pd.read_csv(input_file).set_index('sent_id')
-    X_train, X_tmp, y_train, y_tmp = train_test_split(df['masked_sent'], df[score], random_state=42, test_size=0.3)
+    X_train, X_tmp, y_train, y_tmp = train_test_split(df.iloc[:, :BERT_OUTPUT_SHAPE], df[score], random_state=42, test_size=0.3)
     y_train, y_tmp = score_to_label(y_train, y_tmp, score_threshold_type, score_threshold_value)
 
     X_val, X_test, y_val, y_test = train_test_split(X_tmp, y_tmp, random_state=42, test_size=0.5)
+    train_dataloader = create_data_loader(X_train, y_train, batch_size, shuffle=True)
+    validation_dataloader = create_data_loader(X_val, y_val, batch_size, shuffle=False)
+    test_dataloader = create_data_loader(X_test, y_test, batch_size, shuffle=False)
 
-    tokenizer = AutoTokenizer.from_pretrained(BERT_MODEL)
-    max_length = max([len(s.split()) for s in df['masked_sent']])
-    train_dataloader = create_data_loader(tokenizer, X_train, y_train, max_length, batch_size, shuffle=True)
-    validation_dataloader = create_data_loader(tokenizer, X_val, y_val, max_length, batch_size, shuffle=False)
-    test_dataloader = create_data_loader(tokenizer, X_test, y_test, max_length, batch_size, shuffle=False)
-
+    '''
     # Preparing the model
     model = AutoModelForSequenceClassification.from_pretrained(BERT_MODEL, num_labels=2)
     model.to(device)
@@ -177,7 +182,7 @@ def run_experiment(input_df, score, score_threshold_type, score_threshold_value,
             print(f'Testing batch: {batch_i}/{len(test_dataloader)}')
             test_outputs = model(test_input_ids, attention_mask=test_attention_mask)
             test_total_loss += criterion(test_outputs.logits, test_targets).item()
-            
+
             test_predictions = logit_to_predicted_label(test_outputs.logits)
             is_correct = test_targets == test_predictions
 
@@ -221,7 +226,7 @@ def run_experiment(input_df, score, score_threshold_type, score_threshold_value,
         file.write(f'Test classification report:\n')
         file.write(test_classification_report)
         file.write(f'Settings:\n{experiment_settings}')
-        
+
     '''
 
 if __name__ == '__main__':
