@@ -10,20 +10,34 @@ warnings.filterwarnings("ignore", category=FutureWarning) # Disable the warning
 import sys
 from sklearn.metrics import classification_report
 import random
+import torch.nn as nn
 
 sys.path.append('../')
 from common.util import *
 from common.classifier_util import *
 
-BERT_MODEL = 'bert-base-uncased' #  'distilbert-base-uncased'
-
 BERT_OUTPUT_SHAPE = 768
+
+class BERT_Classifier(nn.Module):
+
+    def __init__(self, input_dim, hidden_layers_config):
+        '''
+        :param input_dim: the input dimension of the network
+        :param hidden_layers_config: indicates the hidden layers configuration of the network. \
+                                     its format: [hidden_dim_1, dropout_rate_1, hidden_dim_2, dropout_rate_2, ...]. \
+                                     for no dropout layer, use None value.
+        '''
+        super(BERT_Classifier, self).__init__()
+        self.model = create_network(input_dim=input_dim, hidden_layers_config=hidden_layers_config, output_dim=2)
+
+    def forward(self, x):
+        return self.model(x)
 
 ####################
 def create_data_loader(X, y, batch_size, shuffle):
     sent_ids = torch.tensor(X.index, dtype=torch.int64).unsqueeze(dim=1).to(device)
     X_tensor = torch.tensor(X.values, dtype=torch.float32).to(device)
-    y_tensor = torch.tensor(y.reshape(-1, 1), dtype=torch.float32).to(device)
+    y_tensor = torch.tensor(y, dtype=torch.int64).to(device)
     dataset = TensorDataset(sent_ids, X_tensor, y_tensor)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
     return dataloader
@@ -61,11 +75,11 @@ def calc_weight(labels):
     negative_weight = total_examples / (2 * num_negative)
     return torch.tensor([negative_weight, positive_weight], dtype=torch.float32) # dtype of float 32 is the requirement of the weight
 
-def run_experiment(df, score, score_threshold_type, score_threshold_value, network_config, learning_rate, batch_size, num_epochs, output_dir):
+def run_experiment(df, score, score_threshold_type, score_threshold_value, hidden_layers_config, learning_rate, batch_size, num_epochs, output_dir):
     print("score:", score)
     print("score_threshold_type:", score_threshold_type)
     print("score_threshold_value:", score_threshold_value)
-    print("network_config:", network_config)
+    print("hidden_layers_config:", hidden_layers_config)
     print("learning_rate:", learning_rate)
     print("batch_size:", batch_size)
     print("num_epochs:", num_epochs)
@@ -86,9 +100,8 @@ def run_experiment(df, score, score_threshold_type, score_threshold_value, netwo
     validation_dataloader = create_data_loader(X_val, y_val, batch_size, shuffle=False)
     test_dataloader = create_data_loader(X_test, y_test, batch_size, shuffle=False)
 
-    '''
     # Preparing the model
-    model = AutoModelForSequenceClassification.from_pretrained(BERT_MODEL, num_labels=2)
+    model = BERT_Classifier(input_dim=BERT_OUTPUT_SHAPE, hidden_layers_config=hidden_layers_config)
     model.to(device)
 
     # Preparing the loss: due to data imbalance, we will use weighted loss function instead of the out-of-the-box BERT's.
@@ -108,12 +121,12 @@ def run_experiment(df, score, score_threshold_type, score_threshold_value, netwo
         model.train()
         total_loss = 0
         total_good = 0
-        for batch_i, (sent_ids, input_ids, attention_mask, targets) in enumerate(train_dataloader, start=1):
+        for batch_i, (sent_ids, embeddings, targets) in enumerate(train_dataloader, start=1):
             print(f'Training batch: {batch_i}/{len(train_dataloader)}')
-            outputs = model(input_ids, attention_mask=attention_mask)
-            loss = criterion(outputs.logits, targets)
+            outputs = model(embeddings)
+            loss = criterion(outputs, targets)
             total_loss += loss.item()
-            predictions = logit_to_predicted_label(outputs.logits)
+            predictions = logit_to_predicted_label(outputs)
             total_good += (predictions == targets).sum().item()
 
             optimizer.zero_grad()
@@ -128,11 +141,11 @@ def run_experiment(df, score, score_threshold_type, score_threshold_value, netwo
         val_total_loss = 0
         total_val_good = 0
         with torch.no_grad():
-            for batch_i, (val_sent_ids, val_input_ids, val_attention_mask, val_targets) in enumerate(validation_dataloader, start=1):
+            for batch_i, (val_sent_ids, val_embeddings, val_targets) in enumerate(validation_dataloader, start=1):
                 print(f'Validation batch: {batch_i}/{len(validation_dataloader)}')
-                val_outputs = model(val_input_ids, attention_mask=val_attention_mask)
-                val_total_loss += criterion(val_outputs.logits, val_targets).item()
-                val_predictions = logit_to_predicted_label(val_outputs.logits)
+                val_outputs = model(val_embeddings)
+                val_total_loss += criterion(val_outputs, val_targets).item()
+                val_predictions = logit_to_predicted_label(val_outputs)
                 total_val_good += (val_predictions == val_targets).sum().item()
 
         total = len(X_val)
@@ -163,12 +176,12 @@ def run_experiment(df, score, score_threshold_type, score_threshold_value, netwo
                                    'ent1', 'label1', 'ent2', 'label2', 'masked_sent'])
     test_total_loss = 0
     with torch.no_grad():
-        for batch_i, (test_sent_ids, test_input_ids, test_attention_mask, test_targets) in enumerate(test_dataloader, start=1):
+        for batch_i, (test_sent_ids, test_embeddings, test_targets) in enumerate(test_dataloader, start=1):
             print(f'Testing batch: {batch_i}/{len(test_dataloader)}')
-            test_outputs = model(test_input_ids, attention_mask=test_attention_mask)
-            test_total_loss += criterion(test_outputs.logits, test_targets).item()
+            test_outputs = model(test_embeddings)
+            test_total_loss += criterion(test_outputs, test_targets).item()
 
-            test_predictions = logit_to_predicted_label(test_outputs.logits)
+            test_predictions = logit_to_predicted_label(test_outputs)
             is_correct = test_targets == test_predictions
 
             all_test_targets += test_targets.tolist()
@@ -212,8 +225,6 @@ def run_experiment(df, score, score_threshold_type, score_threshold_value, netwo
         file.write(test_classification_report)
         file.write(f'Settings:\n{experiment_settings}')
 
-    '''
-
 if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     result_dir = 'results'
@@ -241,16 +252,17 @@ if __name__ == '__main__':
                 for learning_rate in [0.01, 0.05, 0.001, 0.005]:
                     for batch_size in [64, 128, 256]:
                         for i in range(networks_config_experiment_count):
-                            network_config = random.sample(networks_sizes, random.randint(2, 4))
+                            hidden_layers_config = random.sample(networks_sizes, random.randint(2, 4))
+                            hidden_layers_config = [item for layer in hidden_layers_config for item in (layer, None)] # set dropout to be None for now
                             output_dir = f'{result_dir}/{exp_index}'
                             run_experiment(input_df, score, score_threshold_type, score_threshold_value,
-                                           network_config, learning_rate, batch_size, num_epochs, output_dir)
+                                           hidden_layers_config, learning_rate, batch_size, num_epochs, output_dir)
                             experiment_settings = {
                                                     'exp_index': exp_index,
                                                     'score': score,
                                                     'score_threshold_type': score_threshold_type,
                                                     'score_threshold_value': score_threshold_value,
-                                                    'network_config': network_config,
+                                                    'hidden_layers_config': hidden_layers_config,
                                                     'learning_rate': learning_rate,
                                                     'batch_size': batch_size,
                                                     'num_epochs': num_epochs
