@@ -67,10 +67,11 @@ def score_to_label(y_train, y_tmp, score_threshold_type, score_threshold_value):
 
     return y_train, y_tmp
 
-def run_experiment(input_df, score, score_threshold_type, score_threshold_value, learning_rate, batch_size, num_epochs, output_dir):
+def run_experiment(input_df, score, score_threshold_type, score_threshold_value, network_config, learning_rate, batch_size, num_epochs, output_dir):
     print("score:", score)
     print("score_threshold_type:", score_threshold_type)
     print("score_threshold_value:", score_threshold_value)
+    print("network_config:", network_config)
     print("learning_rate:", learning_rate)
     print("batch_size:", batch_size)
     print("num_epochs:", num_epochs)
@@ -252,13 +253,14 @@ if __name__ == '__main__':
                         for i in range(networks_config_experiment_count):
                             network_config = random.sample(networks_sizes, random.randint(2, 4))
                             output_dir = f'{result_dir}/{exp_index}'
-                            run_experiment(input_df, score, score_threshold_type, score_threshold_value, learning_rate,
-                                           batch_size, num_epochs, output_dir)
+                            run_experiment(input_df, score, score_threshold_type, score_threshold_value,
+                                           network_config, learning_rate, batch_size, num_epochs, output_dir)
                             experiment_settings = {
                                                     'exp_index': exp_index,
                                                     'score': score,
                                                     'score_threshold_type': score_threshold_type,
                                                     'score_threshold_value': score_threshold_value,
+                                                    'network_config': network_config,
                                                     'learning_rate': learning_rate,
                                                     'batch_size': batch_size,
                                                     'num_epochs': num_epochs
