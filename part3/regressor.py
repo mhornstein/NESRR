@@ -30,6 +30,7 @@ from docopt import docopt
 
 sys.path.append('../')
 from common.regressor_util import *
+from common.util import *
 
 BERT_MODEL = 'bert-base-cased'
 

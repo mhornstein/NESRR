@@ -2,10 +2,7 @@
 This utility class provides common functions that are shared among all regressors.
 '''
 
-from sklearn.preprocessing import MinMaxScaler
 import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
 import torch.nn as nn
 
 def transform_mi(series, transformation_type):
@@ -26,16 +23,6 @@ def transform_mi(series, transformation_type):
     else:
         raise ValueError(f'Unknown MI transformation: {transformation_type}')
     return scaled_series
-
-def results_to_files(results_dict, output_dir):
-    results_df = pd.DataFrame(results_dict).set_index('epoch')
-
-    for measurement in results_df.columns:
-        results_df[measurement].plot(title=measurement.replace('_', ' '))
-        plt.savefig(f'{output_dir}/{measurement}.jpg')
-        plt.cla()
-
-    results_df.to_csv(f'{output_dir}/results.csv', index=True)
 
 def create_network(input_dim, hidden_layers_config, output_dim):
     '''

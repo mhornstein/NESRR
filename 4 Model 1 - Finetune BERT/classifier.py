@@ -9,9 +9,10 @@ import os
 warnings.filterwarnings("ignore", category=FutureWarning) # Disable the warning
 import sys
 from sklearn.metrics import classification_report
+import numpy as np
 
 sys.path.append('../')
-from common.regressor_util import *
+from common.util import *
 
 BERT_MODEL = 'bert-base-uncased' #  'distilbert-base-uncased'
 
