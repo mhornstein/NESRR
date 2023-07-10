@@ -1,6 +1,8 @@
 import numpy as np
 import torch
 import pandas as pd
+import os
+import csv
 
 def score_to_label(y_train, y_tmp, score_threshold_type, score_threshold_value):
     train_description = y_train.describe()
@@ -54,3 +56,15 @@ def create_batch_result_df(data_df, sent_ids, targets, predictions, is_correct):
     batch_df = pd.concat([batch_results, batch_data], axis=1)
 
     return batch_df
+
+def init_experiment_config_file(file_path, config_header):
+    if not os.path.exists(file_path):
+        with open(file_path, 'w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(config_header)
+
+def write_experiment_config(file_path, entry, config_header):
+    esc_value = lambda val: str(val).replace(',', '') # remove commas from values' conent, so csv format won't be damaged
+    with open(file_path, 'a') as file:
+        values = [esc_value(entry[key]) for key in config_header]
+        file.write(','.join(str(value) for value in values) + '\n')
