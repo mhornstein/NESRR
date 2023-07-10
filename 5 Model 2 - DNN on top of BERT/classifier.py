@@ -75,6 +75,21 @@ def calc_weight(labels):
     negative_weight = total_examples / (2 * num_negative)
     return torch.tensor([negative_weight, positive_weight], dtype=torch.float32) # dtype of float 32 is the requirement of the weight
 
+def calc_measurements(model, dataloader, criterion):
+    total_loss = total_good = total = 0
+    with torch.no_grad():
+        for sent_ids, embeddings, targets in dataloader:
+            outputs = model(embeddings)
+            total_loss += criterion(outputs, targets).item()
+            predictions = logit_to_predicted_label(outputs)
+            total_good += (predictions == targets).sum().item()
+            total += len(targets)
+
+    avg_loss = total_loss / total
+    avg_acc = total_good / total
+
+    return avg_loss, avg_acc
+
 def run_experiment(df, score, score_threshold_type, score_threshold_value, hidden_layers_config, learning_rate, batch_size, num_epochs, output_dir):
     total_start_time = time.time()
 
@@ -102,45 +117,42 @@ def run_experiment(df, score, score_threshold_type, score_threshold_value, hidde
     # Preparing the optimizer
     optimizer = AdamW(model.parameters(), lr=learning_rate)
 
+    # Initialize results with the random state of the model
+    print('Evaluating beginning state state... ')
+    model.eval()
+
+    avg_train_loss, avg_train_acc = calc_measurements(model, train_dataloader, criterion)
+    avg_val_loss, avg_val_acc = calc_measurements(model, validation_dataloader, criterion)
+
+    result_entry = {'epoch': 0,
+                    'avg_train_loss': avg_train_loss,
+                    'avg_val_loss': avg_val_loss,
+                    'avg_train_acc': avg_train_acc,
+                    'avg_val_acc': avg_val_acc,
+                    'epoch_time': 0}
+
+    results = [result_entry]
+
     # start training. reference: https://huggingface.co/transformers/v3.2.0/custom_datasets.html
-    results = []
 
     for epoch in range(1, num_epochs + 1):
         print(f'Starting Epoch: {epoch}/{num_epochs}\n')
         start_time = time.time()
         model.train()
-        total_loss = 0
-        total_good = 0
         for batch_i, (sent_ids, embeddings, targets) in enumerate(train_dataloader, start=1):
             print(f'Training batch: {batch_i}/{len(train_dataloader)}')
             outputs = model(embeddings)
             loss = criterion(outputs, targets)
-            total_loss += loss.item()
-            predictions = logit_to_predicted_label(outputs)
-            total_good += (predictions == targets).sum().item()
 
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
-        total = len(X_train)
-        avg_train_loss = total_loss / total
-        avg_train_acc = total_good / total
-
+        print('start evaluation ... ')
         model.eval()
-        val_total_loss = 0
-        total_val_good = 0
-        with torch.no_grad():
-            for batch_i, (val_sent_ids, val_embeddings, val_targets) in enumerate(validation_dataloader, start=1):
-                print(f'Validation batch: {batch_i}/{len(validation_dataloader)}')
-                val_outputs = model(val_embeddings)
-                val_total_loss += criterion(val_outputs, val_targets).item()
-                val_predictions = logit_to_predicted_label(val_outputs)
-                total_val_good += (val_predictions == val_targets).sum().item()
 
-        total = len(X_val)
-        avg_val_loss = val_total_loss / total
-        avg_val_acc = total_val_good / total
+        avg_train_loss, avg_train_acc = calc_measurements(model, train_dataloader, criterion)
+        avg_val_loss, avg_val_acc = calc_measurements(model, validation_dataloader, criterion)
 
         epoch_time = time.time() - start_time
 
