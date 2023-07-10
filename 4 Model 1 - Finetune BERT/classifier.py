@@ -95,7 +95,7 @@ def run_experiment(input_file, score, score_threshold_type, score_threshold_valu
     results = [result_entry]
 
     # start training. reference: https://huggingface.co/transformers/v3.2.0/custom_datasets.html
-
+    print('Start training...')
     for epoch in range(1, num_epochs + 1):
         print(f'Starting Epoch: {epoch}/{num_epochs}\n')
         start_time = time.time()
