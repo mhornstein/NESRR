@@ -165,17 +165,8 @@ def run_experiment(df, score, score_threshold_type, score_threshold_value, hidde
             all_test_targets += test_targets.tolist()
             all_test_predictions += test_predictions.tolist()
 
-            batch_results = pd.DataFrame({'sent_ids': test_sent_ids.squeeze().numpy(),
-                                          'target_label': test_targets.squeeze().numpy(),
-                                          'predicted_label': test_predictions.squeeze().numpy(),
-                                          'is_correct': is_correct.squeeze().numpy()})
-            batch_results = batch_results.set_index('sent_ids', drop=True)
-            batch_results.index.name = None  # remove index column name
-
-            batch_data = df.loc[torch.squeeze(test_sent_ids)]
-            batch_data = batch_data[['label1', 'label2', 'ent1', 'ent2', 'masked_sent']]
-
-            batch_df = pd.concat([batch_results, batch_data], axis=1)
+            batch_df = create_batch_result_df(data_df=df, sent_ids=test_sent_ids, targets=test_targets,
+                                              predictions=test_predictions, is_correct=is_correct)
 
             out_df = out_df.append(batch_df, ignore_index=False)
 
@@ -251,6 +242,3 @@ if __name__ == '__main__':
                             exp_index += 1
     settings_df = pd.DataFrame(experiments_settings_list).set_index('exp_index')
     settings_df.to_csv(f"{result_dir}/experiments_settings.csv")
-
-
-
