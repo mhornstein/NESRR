@@ -1,5 +1,4 @@
 from sklearn.model_selection import train_test_split
-from transformers import AutoModelForSequenceClassification, AutoTokenizer
 from transformers.optimization import AdamW
 import torch
 from torch.utils.data import TensorDataset, DataLoader
@@ -10,7 +9,6 @@ warnings.filterwarnings("ignore", category=FutureWarning) # Disable the warning
 import sys
 from sklearn.metrics import classification_report
 import random
-import torch.nn as nn
 
 sys.path.append('../')
 from common.util import *
