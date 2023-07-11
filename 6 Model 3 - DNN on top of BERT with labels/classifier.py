@@ -18,18 +18,29 @@ CONFIG_HEADER = ['exp_index', 'score', 'score_threshold_type', 'score_threshold_
 
 class BERT_Classifier(nn.Module):
 
-    def __init__(self, input_dim, hidden_layers_config):
-        '''
-        :param input_dim: the input dimension of the network
-        :param hidden_layers_config: indicates the hidden layers configuration of the network. \
-                                     its format: [hidden_dim_1, dropout_rate_1, hidden_dim_2, dropout_rate_2, ...]. \
-                                     for no dropout layer, use None value.
-        '''
+    def __init__(self, input_dim, labels_pred_hidden_layers_config, interest_pred_hidden_layers_config, num_labels):
         super(BERT_Classifier, self).__init__()
-        self.model = create_network(input_dim=input_dim, hidden_layers_config=hidden_layers_config, output_dim=2)
+        self.num_labels = num_labels
+        self.labels_network = create_network(input_dim=input_dim,
+                                             hidden_layers_config=labels_pred_hidden_layers_config,
+                                             output_dim=num_labels * 2)
+        self.interest_network = create_network(input_dim=num_labels * 2 + input_dim,
+                                             hidden_layers_config=interest_pred_hidden_layers_config,
+                                             output_dim=2)
 
-    def forward(self, x):
-        return self.model(x)
+    def forward(self, embs):
+        # Step 1: classify the labels
+        x = self.labels_network(embs)
+
+        label1_classification_output = x[:, :self.num_labels]
+        label2_classification_output = x[:, self.num_labels:]
+
+        # Step 2: inteset classification with the labels classification output
+        combined_input = torch.cat((label1_classification_output, label2_classification_output, embs), dim=1)
+        interest_classification_output = self.interest_network(combined_input)
+
+        # Step 3: return the results
+        return label1_classification_output, label2_classification_output, interest_classification_output
 
 ####################
 def create_data_loader(X, y, batch_size, shuffle):
@@ -60,20 +71,33 @@ def create_df(data_file, embs_file):
 
     return df
 
-def calc_measurements(model, dataloader, criterion):
-    total_loss = total_good = total = 0
+def calc_measurements(model, dataloader, interest_criterion, labels_criterion):
+    total_loss = interest_total_good = labels_total_good = total = 0
     with torch.no_grad():
-        for sent_ids, embeddings, targets in dataloader:
-            outputs = model(embeddings)
-            total_loss += criterion(outputs, targets).item()
-            predictions = logit_to_predicted_label(outputs)
-            total_good += (predictions == targets).sum().item()
+        for sent_ids, embeddings, labels1, labels2, targets in dataloader:
+            label1_classification_output, label2_classification_output, interest_classification_output = model(embeddings)
+            label1_loss = labels_criterion(label1_classification_output, labels1)
+            label2_loss = labels_criterion(label2_classification_output, labels2)
+            interest_loss = interest_criterion(interest_classification_output, targets)
+            loss = label1_loss + label2_loss + interest_loss
+            total_loss += loss.item()
+
+            predictions = logit_to_predicted_label(interest_classification_output)
+            interest_total_good += (predictions == targets).sum().item()
+
+            predictions = logit_to_predicted_label(label1_classification_output)
+            labels_total_good += (predictions == labels1).sum().item()
+
+            predictions = logit_to_predicted_label(label2_classification_output)
+            labels_total_good += (predictions == labels2).sum().item()
+
             total += len(targets)
 
     avg_loss = total_loss / total
-    avg_acc = total_good / total
+    avg_interest_acc = interest_total_good / total
+    avg_labels_acc = labels_total_good / (2 * total)
 
-    return avg_loss, avg_acc
+    return avg_loss, avg_labels_acc, avg_interest_acc
 
 def run_experiment(df, score, score_threshold_type, score_threshold_value, labels_pred_hidden_layers_config, interest_pred_hidden_layers_config, learning_rate, batch_size, num_epochs, output_dir):
     total_start_time = time.time()
@@ -92,13 +116,21 @@ def run_experiment(df, score, score_threshold_type, score_threshold_value, label
     test_dataloader = create_data_loader(X_test, y_test, batch_size, shuffle=False)
 
     # Preparing the model
-    model = BERT_Classifier(input_dim=BERT_OUTPUT_SHAPE, hidden_layers_config=interest_pred_hidden_layers_config)
+    labels = df[['label1', 'label2']].stack().unique()
+    model = BERT_Classifier(input_dim=BERT_OUTPUT_SHAPE,
+                            labels_pred_hidden_layers_config=labels_pred_hidden_layers_config,
+                            interest_pred_hidden_layers_config=interest_pred_hidden_layers_config,
+                            num_labels=len(labels))
     model.to(device)
 
     # Preparing the loss: due to data imbalance, we will use weighted loss function instead of the out-of-the-box BERT's.
     # reference: https://discuss.huggingface.co/t/class-weights-for-bertforsequenceclassification/1674/6
     weight = calc_weight(y_train)
-    criterion = nn.CrossEntropyLoss(weight=weight, reduction='mean')
+    interest_criterion = nn.CrossEntropyLoss(weight=weight, reduction='mean')
+
+    train_labels = X_train[['label1', 'label2']].stack().droplevel(1)
+    weight = calc_weight(train_labels)
+    labels_criterion = nn.CrossEntropyLoss(weight=weight, reduction='mean')
 
     # Preparing the optimizer
     optimizer = AdamW(model.parameters(), lr=learning_rate)
@@ -107,14 +139,16 @@ def run_experiment(df, score, score_threshold_type, score_threshold_value, label
     print('Evaluating beginning state state... ')
     model.eval()
 
-    avg_train_loss, avg_train_acc = calc_measurements(model, train_dataloader, criterion)
-    avg_val_loss, avg_val_acc = calc_measurements(model, validation_dataloader, criterion)
+    avg_train_loss, avg_train_labels_acc, avg_train_interest_acc = calc_measurements(model, train_dataloader, interest_criterion, labels_criterion)
+    avg_val_loss, avg_val_labels_acc, avg_val_interest_acc = calc_measurements(model, validation_dataloader, interest_criterion, labels_criterion)
 
     result_entry = {'epoch': 0,
                     'avg_train_loss': avg_train_loss,
                     'avg_val_loss': avg_val_loss,
-                    'avg_train_acc': avg_train_acc,
-                    'avg_val_acc': avg_val_acc,
+                    'avg_train_labels_acc': avg_train_labels_acc,
+                    'avg_val_labels_acc': avg_val_labels_acc,
+                    'avg_train_interest_acc': avg_train_interest_acc,
+                    'avg_val_interest_acc': avg_val_interest_acc,
                     'epoch_time': 0}
 
     results = [result_entry]
@@ -125,10 +159,14 @@ def run_experiment(df, score, score_threshold_type, score_threshold_value, label
         print(f'Starting Epoch: {epoch}/{num_epochs}\n')
         start_time = time.time()
         model.train()
-        for batch_i, (sent_ids, embeddings, targets) in enumerate(train_dataloader, start=1):
+        for batch_i, (sent_ids, embeddings, labels1, labels2, targets) in enumerate(train_dataloader, start=1):
             print(f'Training batch: {batch_i}/{len(train_dataloader)}')
-            outputs = model(embeddings)
-            loss = criterion(outputs, targets)
+            label1_classification_output, label2_classification_output, interest_classification_output = model(embeddings)
+
+            label1_loss = labels_criterion(label1_classification_output, labels1)
+            label2_loss = labels_criterion(label2_classification_output, labels2)
+            interest_loss = interest_criterion(interest_classification_output, targets)
+            loss = label1_loss + label2_loss + interest_loss
 
             optimizer.zero_grad()
             loss.backward()
@@ -137,16 +175,18 @@ def run_experiment(df, score, score_threshold_type, score_threshold_value, label
         print('start evaluation ... ')
         model.eval()
 
-        avg_train_loss, avg_train_acc = calc_measurements(model, train_dataloader, criterion)
-        avg_val_loss, avg_val_acc = calc_measurements(model, validation_dataloader, criterion)
+        avg_train_loss, avg_train_labels_acc, avg_train_interest_acc = calc_measurements(model, train_dataloader, interest_criterion, labels_criterion)
+        avg_val_loss, avg_val_labels_acc, avg_val_interest_acc = calc_measurements(model, validation_dataloader, interest_criterion, labels_criterion)
 
         epoch_time = time.time() - start_time
 
         result_entry = {'epoch': epoch,
                         'avg_train_loss': avg_train_loss,
                         'avg_val_loss': avg_val_loss,
-                        'avg_train_acc': avg_train_acc,
-                        'avg_val_acc': avg_val_acc,
+                        'avg_train_labels_acc': avg_train_labels_acc,
+                        'avg_val_labels_acc': avg_val_labels_acc,
+                        'avg_train_interest_acc': avg_train_interest_acc,
+                        'avg_val_interest_acc': avg_val_interest_acc,
                         'epoch_time': epoch_time}
         results.append(result_entry)
         print('Epoch report:')
@@ -167,7 +207,7 @@ def run_experiment(df, score, score_threshold_type, score_threshold_value, label
         for batch_i, (test_sent_ids, test_embeddings, test_targets) in enumerate(test_dataloader, start=1):
             print(f'Testing batch: {batch_i}/{len(test_dataloader)}')
             test_outputs = model(test_embeddings)
-            test_total_loss += criterion(test_outputs, test_targets).item()
+            test_total_loss += interest_criterion(test_outputs, test_targets).item()
 
             test_predictions = logit_to_predicted_label(test_outputs)
             is_correct = test_targets == test_predictions
