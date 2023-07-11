@@ -13,7 +13,7 @@ from common.classifier_util import *
 
 BERT_OUTPUT_SHAPE = 768
 
-CONFIG_HEADER = ['exp_index', 'score', 'score_threshold_type', 'score_threshold_value', 'hidden_layers_config', 'learning_rate', 'batch_size', 'num_epochs']
+CONFIG_HEADER = ['exp_index', 'score', 'score_threshold_type', 'score_threshold_value', 'labels_pred_hidden_layers_config', 'interest_pred_hidden_layers_config' ,'learning_rate', 'batch_size', 'num_epochs']
 
 class BERT_Classifier(nn.Module):
 
@@ -65,7 +65,7 @@ def calc_measurements(model, dataloader, criterion):
 
     return avg_loss, avg_acc
 
-def run_experiment(df, score, score_threshold_type, score_threshold_value, hidden_layers_config, learning_rate, batch_size, num_epochs, output_dir):
+def run_experiment(df, score, score_threshold_type, score_threshold_value, labels_pred_hidden_layers_config, interest_pred_hidden_layers_config, learning_rate, batch_size, num_epochs, output_dir):
     total_start_time = time.time()
 
     if not os.path.exists(output_dir):
@@ -81,7 +81,7 @@ def run_experiment(df, score, score_threshold_type, score_threshold_value, hidde
     test_dataloader = create_data_loader(X_test, y_test, batch_size, shuffle=False)
 
     # Preparing the model
-    model = BERT_Classifier(input_dim=BERT_OUTPUT_SHAPE, hidden_layers_config=hidden_layers_config)
+    model = BERT_Classifier(input_dim=BERT_OUTPUT_SHAPE, hidden_layers_config=interest_pred_hidden_layers_config)
     model.to(device)
 
     # Preparing the loss: due to data imbalance, we will use weighted loss function instead of the out-of-the-box BERT's.
@@ -212,14 +212,16 @@ if __name__ == '__main__':
                 for learning_rate in [0.01, 0.05, 0.001, 0.005]:
                     for batch_size in [64, 128, 256]:
                         for i in range(networks_config_experiment_count):
-                            hidden_layers_config = draw_hidden_layers_config()
+                            labels_pred_hidden_layers_config = draw_hidden_layers_config()
+                            interest_pred_hidden_layers_config = draw_hidden_layers_config()
                             output_dir = f'{result_dir}/{exp_index}'
                             experiment_settings = {
                                                     'exp_index': exp_index,
                                                     'score': score,
                                                     'score_threshold_type': score_threshold_type,
                                                     'score_threshold_value': score_threshold_value,
-                                                    'hidden_layers_config': hidden_layers_config,
+                                                    'labels_pred_hidden_layers_config': labels_pred_hidden_layers_config,
+                                                    'interest_pred_hidden_layers_config': interest_pred_hidden_layers_config,
                                                     'learning_rate': learning_rate,
                                                     'batch_size': batch_size,
                                                     'num_epochs': num_epochs
@@ -228,5 +230,6 @@ if __name__ == '__main__':
                             print('running: ' + experiment_settings_str)
                             write_experiment_config(experiment_config_file_path, experiment_settings, CONFIG_HEADER)
                             run_experiment(input_df, score, score_threshold_type, score_threshold_value,
-                                           hidden_layers_config, learning_rate, batch_size, num_epochs, output_dir)
+                                           labels_pred_hidden_layers_config, interest_pred_hidden_layers_config,
+                                           learning_rate, batch_size, num_epochs, output_dir)
                             exp_index += 1
