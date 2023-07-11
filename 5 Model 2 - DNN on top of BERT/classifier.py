@@ -31,6 +31,7 @@ class BERT_Classifier(nn.Module):
         return self.model(x)
 
 ####################
+
 def create_data_loader(X, y, batch_size, shuffle):
     sent_ids = torch.tensor(X.index, dtype=torch.int64).unsqueeze(dim=1).to(device)
     X_tensor = torch.tensor(X.values, dtype=torch.float32).to(device)
@@ -72,7 +73,7 @@ def run_experiment(df, score, score_threshold_type, score_threshold_value, hidde
         os.makedirs(output_dir)
 
     # Preparing the data
-    X_train, X_tmp, y_train, y_tmp = train_test_split(df.iloc[:, :BERT_OUTPUT_SHAPE], df[score], random_state=42, test_size=0.3)
+    X_train, X_tmp, y_train, y_tmp = train_test_split(df.iloc[:, :BERT_OUTPUT_SHAPE], df[score], random_state=42, test_size=0.4)
     y_train, y_tmp = score_to_label(y_train, y_tmp, score_threshold_type, score_threshold_value)
 
     X_val, X_test, y_val, y_test = train_test_split(X_tmp, y_tmp, random_state=42, test_size=0.5)
@@ -194,7 +195,7 @@ if __name__ == '__main__':
     experiment_config_file_path = f'{result_dir}/experiments_settings.csv'
     init_experiment_config_file(experiment_config_file_path, CONFIG_HEADER)
 
-    num_epochs = 10
+    num_epochs = 30
 
     networks_config_experiment_count = 5
 

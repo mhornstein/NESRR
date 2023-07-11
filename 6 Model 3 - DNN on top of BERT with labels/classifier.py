@@ -104,7 +104,7 @@ def run_experiment(df, score, score_threshold_type, score_threshold_value,
 
     # Preparing the data
     data_columns = list(df.columns[0:BERT_OUTPUT_SHAPE]) + ['label1', 'label2']
-    X_train, X_tmp, y_train, y_tmp = train_test_split(df.loc[:, data_columns], df[score], random_state=42, test_size=0.3)
+    X_train, X_tmp, y_train, y_tmp = train_test_split(df.loc[:, data_columns], df[score], random_state=42, test_size=0.4)
     y_train, y_tmp = score_to_label(y_train, y_tmp, score_threshold_type, score_threshold_value)
 
     X_val, X_test, y_val, y_test = train_test_split(X_tmp, y_tmp, random_state=42, test_size=0.5)
@@ -257,7 +257,7 @@ if __name__ == '__main__':
     experiment_config_file_path = f'{result_dir}/experiments_settings.csv'
     init_experiment_config_file(experiment_config_file_path, CONFIG_HEADER)
 
-    num_epochs = 10
+    num_epochs = 30
 
     networks_config_experiment_count = 5
 

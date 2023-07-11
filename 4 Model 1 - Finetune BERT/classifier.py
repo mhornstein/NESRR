@@ -55,7 +55,7 @@ def run_experiment(input_file, score, score_threshold_type, score_threshold_valu
 
     # Preparing the data
     df = pd.read_csv(input_file).set_index('sent_id')
-    X_train, X_tmp, y_train, y_tmp = train_test_split(df['masked_sent'], df[score], random_state=42, test_size=0.3)
+    X_train, X_tmp, y_train, y_tmp = train_test_split(df['masked_sent'], df[score], random_state=42, test_size=0.4)
     y_train, y_tmp = score_to_label(y_train, y_tmp, score_threshold_type, score_threshold_value)
 
     X_val, X_test, y_val, y_test = train_test_split(X_tmp, y_tmp, random_state=42, test_size=0.5)
