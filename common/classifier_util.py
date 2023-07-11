@@ -24,21 +24,22 @@ def logit_to_predicted_label(logits):
 
 def calc_weight(labels):
     '''
-    Returns a tensor representing the weights for label 0 and label 1 respectively.
-    for the weights, We want the positive class weight to be inversely proportional to the proportion of positive examples.
-    If there are fewer positive examples, we increase the weight to give more importance to those examples during the loss computation.
-    We use 2 for sclaling.
-    Therefore, if N = #all-samples, P = #positive-samples: 1/ 2 * frequency = 1 / 2 * (P/N) = N / 2 * P
-    The same apply for negative samples.
+    Returns a tensor representing the weights for each class.
+    The weights for each class are inversely proportional to the proportion of examples in that class.
+    If there are fewer examples in a class, the weight for that class is increased to give more importance to those examples during the loss computation.
+    We use 2 for scaling.
     Partial reference: https://forums.fast.ai/t/about-weighted-bceloss/78570/3
     '''
     total_examples = len(labels)
-    num_positive = np.sum(labels == 1)
-    num_negative = total_examples - num_positive
+    unique_classes = np.unique(labels)
+    class_weights = []
 
-    positive_weight = total_examples / (2 * num_positive)
-    negative_weight = total_examples / (2 * num_negative)
-    return torch.tensor([negative_weight, positive_weight], dtype=torch.float32) # dtype of float 32 is the requirement of the weight
+    for class_label in unique_classes:
+        num_examples = np.sum(labels == class_label)
+        class_weight = total_examples / (2 * num_examples)
+        class_weights.append(class_weight)
+
+    return torch.tensor(class_weights, dtype=torch.float32) # dtype of float 32 is the requirement of the weight
 
 def create_batch_result_df(data_df, sent_ids, targets, predictions, is_correct):
     batch_results = pd.DataFrame({'sent_ids': sent_ids.squeeze().numpy(),
