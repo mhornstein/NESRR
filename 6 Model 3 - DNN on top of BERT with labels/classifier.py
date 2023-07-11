@@ -6,6 +6,7 @@ import warnings
 warnings.filterwarnings("ignore", category=FutureWarning) # Disable the warning
 import sys
 from sklearn.metrics import classification_report
+from sklearn.preprocessing import LabelEncoder
 
 sys.path.append('../')
 from common.util import *
@@ -32,10 +33,12 @@ class BERT_Classifier(nn.Module):
 
 ####################
 def create_data_loader(X, y, batch_size, shuffle):
-    sent_ids = torch.tensor(X.index, dtype=torch.int64).unsqueeze(dim=1).to(device)
-    X_tensor = torch.tensor(X.values, dtype=torch.float32).to(device)
+    ids_tensor = torch.tensor(X.index, dtype=torch.int64).unsqueeze(dim=1).to(device)
+    embs_tensor = torch.tensor(X.iloc[:, :BERT_OUTPUT_SHAPE].values, dtype=torch.float32).to(device)
+    label1_tensor = torch.tensor(X['label1'].values, dtype=torch.long).to(device) # Note that target class must be of type torch.long
+    label2_tensor = torch.tensor(X['label2'].values, dtype=torch.long).to(device)
     y_tensor = torch.tensor(y, dtype=torch.int64).to(device)
-    dataset = TensorDataset(sent_ids, X_tensor, y_tensor)
+    dataset = TensorDataset(ids_tensor, embs_tensor, label1_tensor, label2_tensor, y_tensor)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
     return dataloader
 
@@ -43,11 +46,18 @@ def create_df(data_file, embs_file):
     df = pd.read_csv(data_file)
     df = df.set_index('sent_id')
 
+    # Add the embeddings
     embs = pd.read_csv(embs_file, sep=' ', header=None)
     embs = embs.set_index(embs.columns[0])  # set sentence id as the index of the dataframe
-
-    # combine both for a single df
     df = pd.concat([embs, df], axis=1)
+
+    # encode the labels
+    labels = get_all_possible_labels(df)
+    le = LabelEncoder() # encode labels from string ('GPE', 'ORG', ...) to ordinal numbers (0, 1, ...)
+    le.fit(labels)
+    df['label1'] = le.transform(df['label1'])
+    df['label2'] = le.transform(df['label2'])
+
     return df
 
 def calc_measurements(model, dataloader, criterion):
@@ -72,7 +82,8 @@ def run_experiment(df, score, score_threshold_type, score_threshold_value, label
         os.makedirs(output_dir)
 
     # Preparing the data
-    X_train, X_tmp, y_train, y_tmp = train_test_split(df.iloc[:, :BERT_OUTPUT_SHAPE], df[score], random_state=42, test_size=0.3)
+    data_columns = list(df.columns[0:BERT_OUTPUT_SHAPE]) + ['label1', 'label2']
+    X_train, X_tmp, y_train, y_tmp = train_test_split(df.loc[:, data_columns], df[score], random_state=42, test_size=0.3)
     y_train, y_tmp = score_to_label(y_train, y_tmp, score_threshold_type, score_threshold_value)
 
     X_val, X_test, y_val, y_test = train_test_split(X_tmp, y_tmp, random_state=42, test_size=0.5)

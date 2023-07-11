@@ -95,7 +95,7 @@ def create_df(data_file, embs_file, mi_transformation):
 
     return df
 
-def get_all_possible_labels(df):
+def get_all_possible_labels(df): # TODO if in use, use util version
     label1_values = set(df['label1'].unique())
     label2_values = set(df['label2'].unique())
     labels = list(label1_values | label2_values)

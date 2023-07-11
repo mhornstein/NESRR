@@ -67,3 +67,9 @@ def write_experiment_config(file_path, entry, config_header):
     with open(file_path, 'a') as file:
         values = [esc_value(entry[key]) for key in config_header]
         file.write(','.join(str(value) for value in values) + '\n')
+
+def get_all_possible_labels(df):
+    label1_values = set(df['label1'].unique())
+    label2_values = set(df['label2'].unique())
+    labels = list(label1_values | label2_values)
+    return labels
