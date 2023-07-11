@@ -62,13 +62,6 @@ def create_df(data_file, embs_file):
     embs = embs.set_index(embs.columns[0])  # set sentence id as the index of the dataframe
     df = pd.concat([embs, df], axis=1)
 
-    # encode the labels
-    labels = get_all_possible_labels(df)
-    le = LabelEncoder() # encode labels from string ('GPE', 'ORG', ...) to ordinal numbers (0, 1, ...)
-    le.fit(labels)
-    df['label1'] = le.transform(df['label1'])
-    df['label2'] = le.transform(df['label2'])
-
     return df
 
 def calc_measurements(model, dataloader, interest_criterion, labels_criterion):
@@ -99,7 +92,11 @@ def calc_measurements(model, dataloader, interest_criterion, labels_criterion):
 
     return avg_loss, avg_labels_acc, avg_interest_acc
 
-def run_experiment(df, score, score_threshold_type, score_threshold_value, labels_pred_hidden_layers_config, interest_pred_hidden_layers_config, learning_rate, batch_size, num_epochs, output_dir):
+def run_experiment(df, score, score_threshold_type, score_threshold_value,
+                   labels_pred_hidden_layers_config, interest_pred_hidden_layers_config,
+                   learning_rate, batch_size, num_epochs,
+                   labels_encoder,
+                   output_dir):
     total_start_time = time.time()
 
     if not os.path.exists(output_dir):
@@ -201,26 +198,40 @@ def run_experiment(df, score, score_threshold_type, score_threshold_value, label
     all_test_predictions = []
 
     out_df = pd.DataFrame(columns=['target_label', 'predicted_label', 'is_correct',
+                                   'label1_predictions', 'label2_predictions',
                                    'ent1', 'label1', 'ent2', 'label2', 'masked_sent'])
-    test_total_loss = 0
     with torch.no_grad():
-        for batch_i, (test_sent_ids, test_embeddings, test_targets) in enumerate(test_dataloader, start=1):
+        for batch_i, (sent_ids, test_embeddings, test_labels1, test_labels2, test_targets) in enumerate(test_dataloader, start=1):
             print(f'Testing batch: {batch_i}/{len(test_dataloader)}')
-            test_outputs = model(test_embeddings)
-            test_total_loss += interest_criterion(test_outputs, test_targets).item()
+            label1_classification_output, label2_classification_output, interest_classification_output = model(test_embeddings)
 
-            test_predictions = logit_to_predicted_label(test_outputs)
-            is_correct = test_targets == test_predictions
+            test_predictions = logit_to_predicted_label(interest_classification_output)
+            label1_predictions = logit_to_predicted_label(label1_classification_output)
+            label2_predictions = logit_to_predicted_label(label2_classification_output)
 
             all_test_targets += test_targets.tolist()
             all_test_predictions += test_predictions.tolist()
 
-            batch_df = create_batch_result_df(data_df=df, sent_ids=test_sent_ids, targets=test_targets,
-                                              predictions=test_predictions, is_correct=is_correct)
+            batch_results = pd.DataFrame({'sent_ids': sent_ids.squeeze().numpy(),
+                                          'target_label': test_targets.squeeze().numpy(),
+                                          'predicted_label': test_predictions.squeeze().numpy(),
+                                          'is_correct': (test_targets == test_predictions).squeeze().numpy(),
+                                          'label1_predictions': label1_predictions.squeeze(),
+                                          'label2_predictions': label2_predictions.squeeze()})
+            batch_results = batch_results.set_index('sent_ids', drop=True)
+            batch_results.index.name = None  # remove index column name
+
+            batch_data = df.loc[torch.squeeze(sent_ids)]
+            batch_data = batch_data[['label1', 'label2', 'ent1', 'ent2', 'masked_sent']]
+
+            batch_df = pd.concat([batch_results, batch_data], axis=1)
+
+            for column in ['label1', 'label2', 'label1_predictions', 'label2_predictions']:
+                batch_df[column] = le.inverse_transform(batch_df[column])
 
             out_df = out_df.append(batch_df, ignore_index=False)
 
-    avg_test_loss = test_total_loss / len(X_test)
+    avg_test_loss, avg_test_labels_acc, avg_test_interest_acc = calc_measurements(model, test_dataloader,interest_criterion, labels_criterion)
 
     test_classification_report = classification_report(all_test_targets, all_test_predictions, zero_division=1)
 
@@ -232,6 +243,7 @@ def run_experiment(df, score, score_threshold_type, score_threshold_value, label
     with open(f'{output_dir}/report.txt', 'w') as file:
         file.write(f'Total time: {total_time}.\n\n')
         file.write(f'Test average loss: {avg_test_loss}.\n')
+        file.write(f'Test labels prediction accuracy: {avg_test_labels_acc}.\n')
         file.write(f'Test classification report:\n')
         file.write(test_classification_report)
 
@@ -255,6 +267,14 @@ if __name__ == '__main__':
     input_file = '../data/dummy/dummy_data.csv' # '../data/data.csv'
 
     input_df = create_df(input_file, embeddings_file)
+
+    # encode the labels
+    labels = get_all_possible_labels(input_df)
+    le = LabelEncoder() # encode labels from string ('GPE', 'ORG', ...) to ordinal numbers (0, 1, ...)
+    le.fit(labels)
+    input_df['label1'] = le.transform(input_df['label1'])
+    input_df['label2'] = le.transform(input_df['label2'])
+
 
     for score in ['mi_score', 'pmi_score']:
         for score_threshold_type in ['percentile', 'std_dist']:
@@ -282,5 +302,7 @@ if __name__ == '__main__':
                             write_experiment_config(experiment_config_file_path, experiment_settings, CONFIG_HEADER)
                             run_experiment(input_df, score, score_threshold_type, score_threshold_value,
                                            labels_pred_hidden_layers_config, interest_pred_hidden_layers_config,
-                                           learning_rate, batch_size, num_epochs, output_dir)
+                                           learning_rate, batch_size, num_epochs,
+                                           le,
+                                           output_dir)
                             exp_index += 1
