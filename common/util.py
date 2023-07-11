@@ -3,6 +3,14 @@ import matplotlib.pyplot as plt
 import torch.nn as nn
 import os
 import csv
+import random
+
+NETWORK_SIZES = [64, 128, 256, 512]
+def draw_hidden_layers_config():
+    hidden_layers_config = random.sample(NETWORK_SIZES, random.randint(2, 4))
+    hidden_layers_config = [item for layer in hidden_layers_config for item in
+                            (layer, None)]  # set dropout to be None for now
+    return hidden_layers_config
 
 def create_network(input_dim, hidden_layers_config, output_dim):
     '''

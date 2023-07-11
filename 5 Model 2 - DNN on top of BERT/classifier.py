@@ -6,7 +6,6 @@ import warnings
 warnings.filterwarnings("ignore", category=FutureWarning) # Disable the warning
 import sys
 from sklearn.metrics import classification_report
-import random
 
 sys.path.append('../')
 from common.util import *
@@ -198,7 +197,6 @@ if __name__ == '__main__':
     num_epochs = 10
 
     networks_config_experiment_count = 5
-    networks_sizes = [64, 128, 256, 512]
 
     exp_index = 1
 
@@ -214,8 +212,7 @@ if __name__ == '__main__':
                 for learning_rate in [0.01, 0.05, 0.001, 0.005]:
                     for batch_size in [64, 128, 256]:
                         for i in range(networks_config_experiment_count):
-                            hidden_layers_config = random.sample(networks_sizes, random.randint(2, 4))
-                            hidden_layers_config = [item for layer in hidden_layers_config for item in (layer, None)] # set dropout to be None for now
+                            hidden_layers_config = draw_hidden_layers_config()
                             output_dir = f'{result_dir}/{exp_index}'
                             experiment_settings = {
                                                     'exp_index': exp_index,
