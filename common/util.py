@@ -1,16 +1,8 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import torch.nn as nn
-
-def results_to_files(results_dict, output_dir):
-    results_df = pd.DataFrame(results_dict).set_index('epoch')
-
-    for measurement in results_df.columns:
-        results_df[measurement].plot(title=measurement.replace('_', ' '))
-        plt.savefig(f'{output_dir}/{measurement}.jpg')
-        plt.cla()
-
-    results_df.to_csv(f'{output_dir}/results.csv', index=True)
+import os
+import csv
 
 def create_network(input_dim, hidden_layers_config, output_dim):
     '''
@@ -45,3 +37,25 @@ def create_network(input_dim, hidden_layers_config, output_dim):
     model = nn.Sequential(*layers)
 
     return model
+
+def results_to_files(results_dict, output_dir):
+    results_df = pd.DataFrame(results_dict).set_index('epoch')
+
+    for measurement in results_df.columns:
+        results_df[measurement].plot(title=measurement.replace('_', ' '))
+        plt.savefig(f'{output_dir}/{measurement}.jpg')
+        plt.cla()
+
+    results_df.to_csv(f'{output_dir}/results.csv', index=True)
+
+def init_experiment_config_file(file_path, config_header):
+    if not os.path.exists(file_path):
+        with open(file_path, 'w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(config_header)
+
+def write_experiment_config(file_path, entry, config_header):
+    esc_value = lambda val: str(val).replace(',', '') # remove commas from values' conent, so csv format won't be damaged
+    with open(file_path, 'a') as file:
+        values = [esc_value(entry[key]) for key in config_header]
+        file.write(','.join(str(value) for value in values) + '\n')
