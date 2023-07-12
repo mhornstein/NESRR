@@ -38,7 +38,7 @@ import sys
 from sklearn import metrics
 from docopt import docopt
 
-sys.path.append('../')
+sys.path.append('../../')
 from common.regressor_util import *
 from common.util import *
 

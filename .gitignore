@@ -5,11 +5,10 @@
 .idea/misc.xml
 .idea/inspectionProfiles/profiles_settings.xml
 data/*
-part3/__pycache__/config.cpython-310.pyc
+archive/part3/__pycache__/config.cpython-310.pyc
 part1/data_extractor_output/dummy_data.csv
-part4/embedding_extractor_output/dummy_embeddings.out
-part4/embedding_extractor_output/embeddings.out
-archive/*
+archive/part4/embedding_extractor_output/dummy_embeddings.out
+archive/part4/embedding_extractor_output/embeddings.out
 common/__pycache__/regressor_util.cpython-310.pyc
 common/__pycache__/classifier_util.cpython-310.pyc
 common/__pycache__/util.cpython-310.pyc

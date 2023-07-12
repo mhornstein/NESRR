@@ -28,7 +28,7 @@ warnings.filterwarnings("ignore", category=FutureWarning) # Disable the warning
 import sys
 from docopt import docopt
 
-sys.path.append('../')
+sys.path.append('../../')
 from common.regressor_util import *
 from common.util import *
 
