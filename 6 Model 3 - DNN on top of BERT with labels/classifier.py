@@ -196,7 +196,7 @@ def test_model(model, test_dataloader, df, interest_criterion, labels_criterion,
 
     out_df.to_csv(f'{output_dir}/test_predictions_results.csv', index=True)
 
-    with open(f'{output_dir}/report.txt', 'w') as file:
+    with open(f'{output_dir}/test_report.txt', 'w') as file:
         file.write(f'Test average loss: {avg_test_loss}.\n')
         file.write(f'Test labels prediction accuracy: {avg_test_labels_acc}.\n')
         file.write(f'Test classification report:\n')
