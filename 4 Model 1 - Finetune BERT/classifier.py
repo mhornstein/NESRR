@@ -47,38 +47,7 @@ def calc_measurements(model, dataloader, criterion):
     return avg_loss, avg_acc
 
 
-def run_experiment(input_file, score, score_threshold_type, score_threshold_value, learning_rate, batch_size, num_epochs, output_dir):
-    total_start_time = time.time()
-
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    # Preparing the data
-    df = pd.read_csv(input_file).set_index('sent_id')
-    X_train, X_tmp, y_train, y_tmp = train_test_split(df['masked_sent'], df[score], random_state=42, test_size=0.4)
-    y_train, y_tmp = score_to_label(y_train, y_tmp, score_threshold_type, score_threshold_value)
-
-    X_val, X_test, y_val, y_test = train_test_split(X_tmp, y_tmp, random_state=42, test_size=0.5)
-
-    tokenizer = AutoTokenizer.from_pretrained(BERT_MODEL)
-    max_length = max([len(s.split()) for s in df['masked_sent']])
-    train_dataloader = create_data_loader(tokenizer, X_train, y_train, max_length, batch_size, shuffle=True)
-    validation_dataloader = create_data_loader(tokenizer, X_val, y_val, max_length, batch_size, shuffle=False)
-    test_dataloader = create_data_loader(tokenizer, X_test, y_test, max_length, batch_size, shuffle=False)
-
-    # Preparing the model
-    model = AutoModelForSequenceClassification.from_pretrained(BERT_MODEL, num_labels=2)
-    model.to(device)
-
-    # Preparing the loss: due to data imbalance, we will use weighted loss function instead of the out-of-the-box BERT's.
-    # reference: https://discuss.huggingface.co/t/class-weights-for-bertforsequenceclassification/1674/6
-    weight = calc_weight(y_train)
-    criterion = nn.CrossEntropyLoss(weight=weight, reduction='mean')
-
-    # Preparing the optimizer
-    optimizer = AdamW(model.parameters(), lr=learning_rate)
-
-    # Initialize results with the random state of the model
+def train_model(model, optimizer, num_epochs, train_dataloader, validation_dataloader, criterion):
     print('Evaluating beginning state state... ')
     model.eval()
 
@@ -95,7 +64,6 @@ def run_experiment(input_file, score, score_threshold_type, score_threshold_valu
     results = [result_entry]
 
     # start training. reference: https://huggingface.co/transformers/v3.2.0/custom_datasets.html
-    print('Start training...')
     for epoch in range(1, num_epochs + 1):
         print(f'Starting Epoch: {epoch}/{num_epochs}\n')
         start_time = time.time()
@@ -128,8 +96,7 @@ def run_experiment(input_file, score, score_threshold_type, score_threshold_valu
 
     results_to_files(results_dict=results, output_dir=output_dir)
 
-    print('Start testing...')
-
+def test_model(model, test_dataloader, df, criterion, output_dir):
     model.eval()
     all_test_targets = []
     all_test_predictions = []
@@ -154,20 +121,62 @@ def run_experiment(input_file, score, score_threshold_type, score_threshold_valu
 
             out_df = out_df.append(batch_df, ignore_index=False)
 
-    avg_test_loss = test_total_loss / len(X_test)
+    test_size = len(all_test_targets)
+    avg_test_loss = test_total_loss / test_size
 
     test_classification_report = classification_report(all_test_targets, all_test_predictions, zero_division=1)
-
-    total_time = time.time() - total_start_time
-    print(f'Done. total time: {total_time} seconds.\n')
 
     out_df.to_csv(f'{output_dir}/test_predictions_results.csv', index=True)
 
     with open(f'{output_dir}/report.txt', 'w') as file:
-        file.write(f'Total time: {total_time}.\n\n')
         file.write(f'Test average loss: {avg_test_loss}.\n')
         file.write(f'Test classification report:\n')
         file.write(test_classification_report)
+
+def run_experiment(input_file, score, score_threshold_type, score_threshold_value, learning_rate, batch_size, num_epochs, output_dir):
+    total_start_time = time.time()
+
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    # Preparing the data
+    df = pd.read_csv(input_file).set_index('sent_id')
+    X_train, X_tmp, y_train, y_tmp = train_test_split(df['masked_sent'], df[score], random_state=42, test_size=0.4)
+    y_train, y_tmp = score_to_label(y_train, y_tmp, score_threshold_type, score_threshold_value)
+
+    X_val, X_test, y_val, y_test = train_test_split(X_tmp, y_tmp, random_state=42, test_size=0.5)
+
+    tokenizer = AutoTokenizer.from_pretrained(BERT_MODEL)
+    max_length = max([len(s.split()) for s in df['masked_sent']])
+    train_dataloader = create_data_loader(tokenizer, X_train, y_train, max_length, batch_size, shuffle=True)
+    validation_dataloader = create_data_loader(tokenizer, X_val, y_val, max_length, batch_size, shuffle=False)
+    test_dataloader = create_data_loader(tokenizer, X_test, y_test, max_length, batch_size, shuffle=False)
+
+    # Preparing the model
+    model = AutoModelForSequenceClassification.from_pretrained(BERT_MODEL, num_labels=2)
+    model.to(device)
+
+    # Preparing the loss: due to data imbalance, we will use weighted loss function instead of the out-of-the-box BERT's.
+    # reference: https://discuss.huggingface.co/t/class-weights-for-bertforsequenceclassification/1674/6
+    weight = calc_weight(y_train)
+    criterion = nn.CrossEntropyLoss(weight=weight, reduction='mean')
+
+    # Preparing the optimizer
+    optimizer = AdamW(model.parameters(), lr=learning_rate)
+
+    # train model
+    print('Start training...')
+    train_model(model, optimizer, num_epochs, train_dataloader, validation_dataloader, criterion)
+
+    # test model
+    print('Start testing...')
+    test_model(model, test_dataloader, df, criterion, output_dir)
+
+    total_time = time.time() - total_start_time
+    print(f'Done. total time: {total_time} seconds.\n')
+
+    with open(f'{output_dir}/time_report.txt', 'w') as file:
+        file.write(f'Total time: {total_time}.\n\n')
 
 if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
