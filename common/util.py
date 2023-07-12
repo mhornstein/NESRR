@@ -64,7 +64,7 @@ def results_to_files(results_dict, output_dir):
     save_df_plot(df=results_df[['avg_train_acc', 'avg_val_acc']], title='accuracy', output_dir=output_dir)
     save_df_plot(df=results_df[['epoch_time']], title='epochs-time', output_dir=output_dir)
 
-    results_df.to_csv(f'{output_dir}/results.csv', index=True)
+    results_df.to_csv(f'{output_dir}/train_logs.csv', index=True)
 
 def init_experiment_config_file(file_path, config_header):
     if not os.path.exists(file_path):
