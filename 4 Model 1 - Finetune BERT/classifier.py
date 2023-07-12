@@ -175,7 +175,7 @@ def run_experiment(input_file, score, score_threshold_type, score_threshold_valu
     total_time = time.time() - total_start_time
     print(f'Done. total time: {total_time} seconds.\n')
 
-    with open(f'{output_dir}/time_report.txt', 'w') as file:
+    with open(f'{output_dir}/total_time.txt', 'w') as file:
         file.write(f'Total time: {total_time}.')
 
 if __name__ == '__main__':

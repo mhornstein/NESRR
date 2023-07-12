@@ -192,7 +192,7 @@ def run_experiment(df, score, score_threshold_type, score_threshold_value, hidde
     total_time = time.time() - total_start_time
     print(f'Done. total time: {total_time} seconds.\n')
 
-    with open(f'{output_dir}/time_report.txt', 'a') as file:
+    with open(f'{output_dir}/total_time.txt', 'a') as file:
         file.write(f'Total time: {total_time} seconds.')
 
 if __name__ == '__main__':
