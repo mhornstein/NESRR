@@ -46,13 +46,23 @@ def create_network(input_dim, hidden_layers_config, output_dim):
 
     return model
 
+def save_df_plot(df, title, output_dir):
+    ax = df.plot(title=title)
+
+    # Modify the legend labels so they have whitespaces instead of _
+    handles, labels = ax.get_legend_handles_labels()
+    labels = [label.replace('_', ' ') for label in labels]
+    ax.legend(handles, labels)
+
+    plt.savefig(f'{output_dir}/{title}.jpg')
+    plt.cla()
+
 def results_to_files(results_dict, output_dir):
     results_df = pd.DataFrame(results_dict).set_index('epoch')
 
-    for measurement in results_df.columns:
-        results_df[measurement].plot(title=measurement.replace('_', ' '))
-        plt.savefig(f'{output_dir}/{measurement}.jpg')
-        plt.cla()
+    save_df_plot(df=results_df[['avg_train_loss', 'avg_val_loss']], title='loss', output_dir=output_dir)
+    save_df_plot(df=results_df[['avg_train_acc', 'avg_val_acc']], title='accuracy', output_dir=output_dir)
+    save_df_plot(df=results_df[['epoch_time']], title='epochs-time', output_dir=output_dir)
 
     results_df.to_csv(f'{output_dir}/results.csv', index=True)
 
