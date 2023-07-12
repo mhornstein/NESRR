@@ -94,7 +94,7 @@ def calc_measurements(model, dataloader, interest_criterion, labels_criterion):
     return avg_loss, avg_labels_acc, avg_interest_acc
 
 def train_model(model, optimizer, num_epochs, train_dataloader, validation_dataloader, interest_criterion, labels_criterion, output_dir):
-    print('Evaluating beginning state state... ')
+    print('Evaluating beginning state... ')
     model.eval()
 
     avg_train_loss, avg_train_labels_acc, avg_train_interest_acc = calc_measurements(model, train_dataloader, interest_criterion, labels_criterion)

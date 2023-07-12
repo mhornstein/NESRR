@@ -67,7 +67,7 @@ def calc_measurements(model, dataloader, criterion):
     return avg_loss, avg_acc
 
 def train_model(model, optimizer, num_epochs, train_dataloader, validation_dataloader, criterion, output_dir):
-    print('Evaluating beginning state state... ')
+    print('Evaluating beginning state... ')
     model.eval()
 
     avg_train_loss, avg_train_acc = calc_measurements(model, train_dataloader, criterion)

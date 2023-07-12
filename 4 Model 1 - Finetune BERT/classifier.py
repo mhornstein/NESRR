@@ -48,7 +48,7 @@ def calc_measurements(model, dataloader, criterion):
 
 
 def train_model(model, optimizer, num_epochs, train_dataloader, validation_dataloader, criterion):
-    print('Evaluating beginning state state... ')
+    print('Evaluating beginning state... ')
     model.eval()
 
     avg_train_loss, avg_train_acc = calc_measurements(model, train_dataloader, criterion)
@@ -176,7 +176,7 @@ def run_experiment(input_file, score, score_threshold_type, score_threshold_valu
     print(f'Done. total time: {total_time} seconds.\n')
 
     with open(f'{output_dir}/time_report.txt', 'w') as file:
-        file.write(f'Total time: {total_time}.\n\n')
+        file.write(f'Total time: {total_time}.')
 
 if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
