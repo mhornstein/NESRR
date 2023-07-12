@@ -43,6 +43,7 @@ class BERT_Classifier(nn.Module):
         return label1_classification_output, label2_classification_output, interest_classification_output
 
 ####################
+
 def create_data_loader(X, y, batch_size, shuffle):
     ids_tensor = torch.tensor(X.index, dtype=torch.int64).unsqueeze(dim=1).to(device)
     embs_tensor = torch.tensor(X.iloc[:, :BERT_OUTPUT_SHAPE].values, dtype=torch.float32).to(device)
@@ -92,47 +93,7 @@ def calc_measurements(model, dataloader, interest_criterion, labels_criterion):
 
     return avg_loss, avg_labels_acc, avg_interest_acc
 
-def run_experiment(df, score, score_threshold_type, score_threshold_value,
-                   labels_pred_hidden_layers_config, interest_pred_hidden_layers_config,
-                   learning_rate, batch_size, num_epochs,
-                   labels_encoder,
-                   output_dir):
-    total_start_time = time.time()
-
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    # Preparing the data
-    data_columns = list(df.columns[0:BERT_OUTPUT_SHAPE]) + ['label1', 'label2']
-    X_train, X_tmp, y_train, y_tmp = train_test_split(df.loc[:, data_columns], df[score], random_state=42, test_size=0.4)
-    y_train, y_tmp = score_to_label(y_train, y_tmp, score_threshold_type, score_threshold_value)
-
-    X_val, X_test, y_val, y_test = train_test_split(X_tmp, y_tmp, random_state=42, test_size=0.5)
-    train_dataloader = create_data_loader(X_train, y_train, batch_size, shuffle=True)
-    validation_dataloader = create_data_loader(X_val, y_val, batch_size, shuffle=False)
-    test_dataloader = create_data_loader(X_test, y_test, batch_size, shuffle=False)
-
-    # Preparing the model
-    labels = df[['label1', 'label2']].stack().unique()
-    model = BERT_Classifier(input_dim=BERT_OUTPUT_SHAPE,
-                            labels_pred_hidden_layers_config=labels_pred_hidden_layers_config,
-                            interest_pred_hidden_layers_config=interest_pred_hidden_layers_config,
-                            num_labels=len(labels))
-    model.to(device)
-
-    # Preparing the loss: due to data imbalance, we will use weighted loss function instead of the out-of-the-box BERT's.
-    # reference: https://discuss.huggingface.co/t/class-weights-for-bertforsequenceclassification/1674/6
-    weight = calc_weight(y_train)
-    interest_criterion = nn.CrossEntropyLoss(weight=weight, reduction='mean')
-
-    train_labels = X_train[['label1', 'label2']].stack().droplevel(1)
-    weight = calc_weight(train_labels)
-    labels_criterion = nn.CrossEntropyLoss(weight=weight, reduction='mean')
-
-    # Preparing the optimizer
-    optimizer = AdamW(model.parameters(), lr=learning_rate)
-
-    # Initialize results with the random state of the model
+def train_model(model, optimizer, num_epochs, train_dataloader, validation_dataloader, interest_criterion, labels_criterion, output_dir):
     print('Evaluating beginning state state... ')
     model.eval()
 
@@ -151,7 +112,6 @@ def run_experiment(df, score, score_threshold_type, score_threshold_value,
     results = [result_entry]
 
     # start training. reference: https://huggingface.co/transformers/v3.2.0/custom_datasets.html
-    print('Start training...')
     for epoch in range(1, num_epochs + 1):
         print(f'Starting Epoch: {epoch}/{num_epochs}\n')
         start_time = time.time()
@@ -191,8 +151,7 @@ def run_experiment(df, score, score_threshold_type, score_threshold_value,
 
     results_to_files(results_dict=results, output_dir=output_dir)
 
-    print('Start testing...')
-
+def test_model(model, test_dataloader, df, interest_criterion, labels_criterion, le, output_dir):
     model.eval()
     all_test_targets = []
     all_test_predictions = []
@@ -231,21 +190,71 @@ def run_experiment(df, score, score_threshold_type, score_threshold_value,
 
             out_df = out_df.append(batch_df, ignore_index=False)
 
-    avg_test_loss, avg_test_labels_acc, avg_test_interest_acc = calc_measurements(model, test_dataloader,interest_criterion, labels_criterion)
+    avg_test_loss, avg_test_labels_acc, avg_test_interest_acc = calc_measurements(model, test_dataloader, interest_criterion, labels_criterion)
 
     test_classification_report = classification_report(all_test_targets, all_test_predictions, zero_division=1)
-
-    total_time = time.time() - total_start_time
-    print(f'Done. total time: {total_time} seconds.\n')
 
     out_df.to_csv(f'{output_dir}/test_predictions_results.csv', index=True)
 
     with open(f'{output_dir}/report.txt', 'w') as file:
-        file.write(f'Total time: {total_time}.\n\n')
         file.write(f'Test average loss: {avg_test_loss}.\n')
         file.write(f'Test labels prediction accuracy: {avg_test_labels_acc}.\n')
         file.write(f'Test classification report:\n')
         file.write(test_classification_report)
+
+
+def run_experiment(df, score, score_threshold_type, score_threshold_value,
+                   labels_pred_hidden_layers_config, interest_pred_hidden_layers_config,
+                   learning_rate, batch_size, num_epochs,
+                   le, output_dir):
+    total_start_time = time.time()
+
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    # Preparing the data
+    data_columns = list(df.columns[0:BERT_OUTPUT_SHAPE]) + ['label1', 'label2']
+    X_train, X_tmp, y_train, y_tmp = train_test_split(df.loc[:, data_columns], df[score], random_state=42, test_size=0.4)
+    y_train, y_tmp = score_to_label(y_train, y_tmp, score_threshold_type, score_threshold_value)
+
+    X_val, X_test, y_val, y_test = train_test_split(X_tmp, y_tmp, random_state=42, test_size=0.5)
+    train_dataloader = create_data_loader(X_train, y_train, batch_size, shuffle=True)
+    validation_dataloader = create_data_loader(X_val, y_val, batch_size, shuffle=False)
+    test_dataloader = create_data_loader(X_test, y_test, batch_size, shuffle=False)
+
+    # Preparing the model
+    labels = df[['label1', 'label2']].stack().unique()
+    model = BERT_Classifier(input_dim=BERT_OUTPUT_SHAPE,
+                            labels_pred_hidden_layers_config=labels_pred_hidden_layers_config,
+                            interest_pred_hidden_layers_config=interest_pred_hidden_layers_config,
+                            num_labels=len(labels))
+    model.to(device)
+
+    # Preparing the loss: due to data imbalance, we will use weighted loss function instead of the out-of-the-box BERT's.
+    # reference: https://discuss.huggingface.co/t/class-weights-for-bertforsequenceclassification/1674/6
+    weight = calc_weight(y_train)
+    interest_criterion = nn.CrossEntropyLoss(weight=weight, reduction='mean')
+
+    train_labels = X_train[['label1', 'label2']].stack().droplevel(1)
+    weight = calc_weight(train_labels)
+    labels_criterion = nn.CrossEntropyLoss(weight=weight, reduction='mean')
+
+    # Preparing the optimizer
+    optimizer = AdamW(model.parameters(), lr=learning_rate)
+
+    # train model
+    print('Start training...')
+    train_model(model, optimizer, num_epochs, train_dataloader, validation_dataloader, interest_criterion, labels_criterion, output_dir)
+
+    # test model
+    print('Start testing...')
+    test_model(model, test_dataloader, df, interest_criterion, labels_criterion, le, output_dir)
+
+    total_time = time.time() - total_start_time
+    print(f'Done. total time: {total_time} seconds.\n')
+
+    with open(f'{output_dir}/time_report.txt', 'a') as file:
+        file.write(f'\nTotal time: {total_time} seconds.')
 
 if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
