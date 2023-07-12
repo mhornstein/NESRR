@@ -223,11 +223,10 @@ def run_experiment(df, score, score_threshold_type, score_threshold_value,
     test_dataloader = create_data_loader(X_test, y_test, batch_size, shuffle=False)
 
     # Preparing the model
-    labels = df[['label1', 'label2']].stack().unique()
     model = BERT_Classifier(input_dim=BERT_OUTPUT_SHAPE,
                             labels_pred_hidden_layers_config=labels_pred_hidden_layers_config,
                             interest_pred_hidden_layers_config=interest_pred_hidden_layers_config,
-                            num_labels=len(labels))
+                            num_labels=len(le.classes_))
     model.to(device)
 
     # Preparing the loss: due to data imbalance, we will use weighted loss function instead of the out-of-the-box BERT's.
@@ -254,7 +253,7 @@ def run_experiment(df, score, score_threshold_type, score_threshold_value,
     print(f'Done. total time: {total_time} seconds.\n')
 
     with open(f'{output_dir}/time_report.txt', 'a') as file:
-        file.write(f'\nTotal time: {total_time} seconds.')
+        file.write(f'Total time: {total_time} seconds.')
 
 if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
