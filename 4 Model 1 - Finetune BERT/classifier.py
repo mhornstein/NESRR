@@ -119,7 +119,7 @@ def test_model(model, test_dataloader, df, criterion, output_dir):
             batch_df = create_batch_result_df(data_df=df, sent_ids=test_sent_ids, targets=test_targets,
                                               predictions=test_predictions, is_correct=is_correct)
 
-            out_df = out_df.append(batch_df, ignore_index=False)
+            out_df = pd.concat([out_df, batch_df], ignore_index=False)
 
     test_size = len(all_test_targets)
     avg_test_loss = test_total_loss / test_size

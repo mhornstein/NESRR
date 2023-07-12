@@ -188,7 +188,7 @@ def test_model(model, test_dataloader, df, interest_criterion, labels_criterion,
             for column in ['label1', 'label2', 'label1_predictions', 'label2_predictions']:
                 batch_df[column] = le.inverse_transform(batch_df[column])
 
-            out_df = out_df.append(batch_df, ignore_index=False)
+            out_df = pd.concat([out_df, batch_df], ignore_index=False)
 
     avg_test_loss, avg_test_labels_acc, avg_test_interest_acc = calc_measurements(model, test_dataloader, interest_criterion, labels_criterion)
 
