@@ -62,6 +62,8 @@ def results_to_files(results_dict, output_dir):
 
     save_df_plot(df=results_df[['avg_train_loss', 'avg_val_loss']], title='loss', output_dir=output_dir)
     save_df_plot(df=results_df[['avg_train_acc', 'avg_val_acc']], title='accuracy', output_dir=output_dir)
+    if 'avg_val_labels_acc' in results_df.columns:
+        save_df_plot(df=results_df[['avg_train_labels_acc', 'avg_val_labels_acc']], title='labels-accuracy', output_dir=output_dir)
     save_df_plot(df=results_df[['epoch_time']], title='epochs-time', output_dir=output_dir)
 
     results_df.to_csv(f'{output_dir}/train_logs.csv', index=True)

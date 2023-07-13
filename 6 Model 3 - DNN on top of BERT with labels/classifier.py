@@ -105,8 +105,8 @@ def train_model(model, optimizer, num_epochs, train_dataloader, validation_datal
                     'avg_val_loss': avg_val_loss,
                     'avg_train_labels_acc': avg_train_labels_acc,
                     'avg_val_labels_acc': avg_val_labels_acc,
-                    'avg_train_interest_acc': avg_train_interest_acc,
-                    'avg_val_interest_acc': avg_val_interest_acc,
+                    'avg_train_acc': avg_train_interest_acc,
+                    'avg_val_acc': avg_val_interest_acc,
                     'epoch_time': 0}
 
     results = [result_entry]
@@ -142,8 +142,8 @@ def train_model(model, optimizer, num_epochs, train_dataloader, validation_datal
                         'avg_val_loss': avg_val_loss,
                         'avg_train_labels_acc': avg_train_labels_acc,
                         'avg_val_labels_acc': avg_val_labels_acc,
-                        'avg_train_interest_acc': avg_train_interest_acc,
-                        'avg_val_interest_acc': avg_val_interest_acc,
+                        'avg_train_acc': avg_train_interest_acc,
+                        'avg_val_acc': avg_val_interest_acc,
                         'epoch_time': epoch_time}
         results.append(result_entry)
         print('Epoch report:')
