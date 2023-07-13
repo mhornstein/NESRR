@@ -23,13 +23,13 @@ import torch
 from torch.utils.data import TensorDataset, DataLoader
 import time
 import warnings
-import os
+
 warnings.filterwarnings("ignore", category=FutureWarning) # Disable the warning
 import sys
 from docopt import docopt
 
 sys.path.append('../../')
-from common.regressor_util import *
+from archive.regressor_util import *
 from common.util import *
 
 BERT_MODEL = 'bert-base-cased'
