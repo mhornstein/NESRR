@@ -80,6 +80,19 @@ def write_experiment_config(file_path, entry, config_header):
         values = [esc_value(entry[key]) for key in config_header]
         file.write(','.join(str(value) for value in values) + '\n')
 
+def init_experiment_log_file(file_path, config_header, results_header):
+    if not os.path.exists(file_path):
+        with open(file_path, 'w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(config_header + results_header)
+
+def log_experiment(file_path, config_header, experiment_config, results_header, experiment_results):
+    esc_value = lambda val: str(val).replace(',', '') # remove commas from values' conent, so csv format won't be damaged
+    with open(file_path, 'a') as file:
+        values = [esc_value(experiment_config[key]) for key in config_header]
+        values += [experiment_results[key] for key in results_header]
+        file.write(','.join(str(value) for value in values) + '\n')
+
 def get_all_possible_labels(df):
     label1_values = set(df['label1'].unique())
     label2_values = set(df['label2'].unique())
