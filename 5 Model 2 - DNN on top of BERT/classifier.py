@@ -188,7 +188,7 @@ def run_experiment(df, score, score_threshold_type, score_threshold_value, hidde
 
     # train model
     print('Start training...')
-    train_model(model, optimizer, num_epochs, train_dataloader, validation_dataloader, criterion, output_dir)
+    train_results = train_model(model, optimizer, num_epochs, train_dataloader, validation_dataloader, criterion, output_dir)
 
     # test model
     print('Start testing...')
@@ -200,10 +200,10 @@ def run_experiment(df, score, score_threshold_type, score_threshold_value, hidde
     with open(f'{output_dir}/total_time.txt', 'a') as file:
         file.write(f'Total time: {total_time} seconds.')
 
-    experiment_results = {'max_train_acc': 1,
-                          'max_train_acc_epoch': 2,
-                          'max_val_acc': 3,
-                          'max_val_acc_epoch': 4,
+    experiment_results = {'max_train_acc': train_results['avg_train_acc'].max(),
+                          'max_train_acc_epoch': train_results['avg_train_acc'].idxmax(),
+                          'max_val_acc': train_results['avg_val_acc'].max(),
+                          'max_val_acc_epoch': train_results['avg_val_acc'].idxmax(),
                           'test_acc': 5}
     return experiment_results
 
