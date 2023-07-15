@@ -5,7 +5,7 @@ import time
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning) # Disable the warning
 import sys
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, accuracy_score
 
 sys.path.append('../')
 from common.util import *
@@ -158,6 +158,8 @@ def test_model(model, test_dataloader, df, criterion, output_dir):
         file.write(f'Test classification report:\n')
         file.write(test_classification_report)
 
+    accuracy = accuracy_score(all_test_targets, all_test_predictions)
+    return accuracy
 
 def run_experiment(df, score, score_threshold_type, score_threshold_value, hidden_layers_config, learning_rate, batch_size, num_epochs, output_dir):
     total_start_time = time.time()
@@ -192,7 +194,7 @@ def run_experiment(df, score, score_threshold_type, score_threshold_value, hidde
 
     # test model
     print('Start testing...')
-    test_model(model, test_dataloader, df, criterion, output_dir)
+    test_acc = test_model(model, test_dataloader, df, criterion, output_dir)
 
     total_time = time.time() - total_start_time
     print(f'Done. total time: {total_time} seconds.\n')
@@ -204,7 +206,7 @@ def run_experiment(df, score, score_threshold_type, score_threshold_value, hidde
                           'max_train_acc_epoch': train_results['avg_train_acc'].idxmax(),
                           'max_val_acc': train_results['avg_val_acc'].max(),
                           'max_val_acc_epoch': train_results['avg_val_acc'].idxmax(),
-                          'test_acc': 5}
+                          'test_acc': test_acc}
     return experiment_results
 
 if __name__ == '__main__':
