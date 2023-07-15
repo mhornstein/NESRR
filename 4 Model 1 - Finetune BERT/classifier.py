@@ -15,6 +15,7 @@ from common.classifier_util import *
 BERT_MODEL = 'bert-base-uncased' #  'distilbert-base-uncased'
 
 CONFIG_HEADER = ['exp_index', 'score', 'score_threshold_type', 'score_threshold_value', 'learning_rate', 'batch_size', 'num_epochs']
+RESULTS_HEADER = ['max_train_acc', 'max_train_acc_epoch', 'max_val_acc', 'max_val_acc_epoch', 'test_acc']
 
 ####################
 
@@ -180,6 +181,13 @@ def run_experiment(input_file, score, score_threshold_type, score_threshold_valu
     with open(f'{output_dir}/total_time.txt', 'w') as file:
         file.write(f'Total time: {total_time}.')
 
+    experiment_results = {'max_train_acc': 1,
+                          'max_train_acc_epoch': 2,
+                          'max_val_acc': 3,
+                          'max_val_acc_epoch': 4,
+                          'test_acc': 5}
+    return experiment_results
+
 if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     result_dir = 'results'
@@ -187,8 +195,8 @@ if __name__ == '__main__':
     if not os.path.exists(result_dir):
         os.makedirs(result_dir)
 
-    experiment_config_file_path = f'{result_dir}/experiments_settings.csv'
-    init_experiment_config_file(experiment_config_file_path, CONFIG_HEADER)
+    experiment_log_file_path = f'{result_dir}/experiments_settings.csv'
+    init_experiment_log_file(experiment_log_file_path, CONFIG_HEADER, RESULTS_HEADER)
 
     num_epochs = 10
 
@@ -214,7 +222,8 @@ if __name__ == '__main__':
                                                }
                         experiment_settings_str = ','.join([f'{key}={value}' for key, value in experiment_settings.items()])
                         print('running: ' + experiment_settings_str)
-                        write_experiment_config(experiment_config_file_path, experiment_settings, CONFIG_HEADER)
-                        run_experiment(input_file, score, score_threshold_type, score_threshold_value, learning_rate,
+                        experiment_results = run_experiment(input_file, score, score_threshold_type, score_threshold_value, learning_rate,
                                        batch_size, num_epochs, output_dir)
+                        log_experiment(experiment_log_file_path, CONFIG_HEADER, experiment_settings, RESULTS_HEADER,
+                                       experiment_results)
                         exp_index += 1
