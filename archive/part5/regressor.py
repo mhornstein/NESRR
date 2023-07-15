@@ -257,7 +257,10 @@ if __name__ == '__main__':
         results.append(result_entry)
         print('\n'.join(key + ': ' + str(value) for key, value in result_entry.items()) + '\n')
         
-    results_to_files(results_dict=results, output_dir=output_dir)
+
+    results_df = pd.DataFrame(results).set_index('epoch')
+
+    results_to_files(results_df=results_df, output_dir=output_dir)
 
     print('Start testing...')
 
