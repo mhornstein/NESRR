@@ -6,7 +6,7 @@ import time
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning) # Disable the warning
 import sys
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, accuracy_score
 
 sys.path.append('../')
 from common.util import *
@@ -96,8 +96,8 @@ def train_model(model, optimizer, num_epochs, train_dataloader, validation_datal
         print('\n'.join(key + ': ' + str(value) for key, value in result_entry.items()) + '\n')
 
     results_df = pd.DataFrame(results).set_index('epoch')
-
     results_to_files(results_df=results_df, output_dir=output_dir)
+    return results_df
 
 def test_model(model, test_dataloader, df, criterion, output_dir):
     model.eval()
@@ -136,6 +136,9 @@ def test_model(model, test_dataloader, df, criterion, output_dir):
         file.write(f'Test classification report:\n')
         file.write(test_classification_report)
 
+    accuracy = accuracy_score(all_test_targets, all_test_predictions)
+    return accuracy
+
 def run_experiment(input_file, score, score_threshold_type, score_threshold_value, learning_rate, batch_size, num_epochs, output_dir):
     total_start_time = time.time()
 
@@ -169,11 +172,11 @@ def run_experiment(input_file, score, score_threshold_type, score_threshold_valu
 
     # train model
     print('Start training...')
-    train_model(model, optimizer, num_epochs, train_dataloader, validation_dataloader, criterion)
+    train_results = train_model(model, optimizer, num_epochs, train_dataloader, validation_dataloader, criterion)
 
     # test model
     print('Start testing...')
-    test_model(model, test_dataloader, df, criterion, output_dir)
+    test_acc = test_model(model, test_dataloader, df, criterion, output_dir)
 
     total_time = time.time() - total_start_time
     print(f'Done. total time: {total_time} seconds.\n')
@@ -181,11 +184,11 @@ def run_experiment(input_file, score, score_threshold_type, score_threshold_valu
     with open(f'{output_dir}/total_time.txt', 'w') as file:
         file.write(f'Total time: {total_time}.')
 
-    experiment_results = {'max_train_acc': 1,
-                          'max_train_acc_epoch': 2,
-                          'max_val_acc': 3,
-                          'max_val_acc_epoch': 4,
-                          'test_acc': 5}
+    experiment_results = {'max_train_acc': train_results['avg_train_acc'].max(),
+                          'max_train_acc_epoch': train_results['avg_train_acc'].idxmax(),
+                          'max_val_acc': train_results['avg_val_acc'].max(),
+                          'max_val_acc_epoch': train_results['avg_val_acc'].idxmax(),
+                          'test_acc': test_acc}
     return experiment_results
 
 if __name__ == '__main__':
