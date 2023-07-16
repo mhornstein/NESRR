@@ -5,7 +5,7 @@ import time
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning) # Disable the warning
 import sys
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, accuracy_score
 from sklearn.preprocessing import LabelEncoder
 
 sys.path.append('../')
@@ -15,6 +15,9 @@ from common.classifier_util import *
 BERT_OUTPUT_SHAPE = 768
 
 CONFIG_HEADER = ['exp_index', 'score', 'score_threshold_type', 'score_threshold_value', 'labels_pred_hidden_layers_config', 'interest_pred_hidden_layers_config' ,'learning_rate', 'batch_size', 'num_epochs']
+RESULTS_HEADER = ['max_train_acc', 'max_train_acc_epoch', 'max_train_labels_acc', 'max_train_labels_acc_epoch',
+                  'max_val_acc', 'max_val_acc_epoch', 'max_val_labels_acc', 'max_val_labels_acc_epoch',
+                  'test_acc']
 
 class BERT_Classifier(nn.Module):
 
@@ -150,8 +153,8 @@ def train_model(model, optimizer, num_epochs, train_dataloader, validation_datal
         print('\n'.join(key + ': ' + str(value) for key, value in result_entry.items()) + '\n')
 
     results_df = pd.DataFrame(results).set_index('epoch')
-
     results_to_files(results_df=results_df, output_dir=output_dir)
+    return results_df
 
 def test_model(model, test_dataloader, df, interest_criterion, labels_criterion, le, output_dir):
     model.eval()
@@ -204,6 +207,8 @@ def test_model(model, test_dataloader, df, interest_criterion, labels_criterion,
         file.write(f'Test classification report:\n')
         file.write(test_classification_report)
 
+    accuracy = accuracy_score(all_test_targets, all_test_predictions)
+    return accuracy
 
 def run_experiment(df, score, score_threshold_type, score_threshold_value,
                    labels_pred_hidden_layers_config, interest_pred_hidden_layers_config,
@@ -245,17 +250,28 @@ def run_experiment(df, score, score_threshold_type, score_threshold_value,
 
     # train model
     print('Start training...')
-    train_model(model, optimizer, num_epochs, train_dataloader, validation_dataloader, interest_criterion, labels_criterion, output_dir)
+    train_results = train_model(model, optimizer, num_epochs, train_dataloader, validation_dataloader, interest_criterion, labels_criterion, output_dir)
 
     # test model
     print('Start testing...')
-    test_model(model, test_dataloader, df, interest_criterion, labels_criterion, le, output_dir)
+    test_acc = test_model(model, test_dataloader, df, interest_criterion, labels_criterion, le, output_dir)
 
     total_time = time.time() - total_start_time
     print(f'Done. total time: {total_time} seconds.\n')
 
     with open(f'{output_dir}/total_time.txt', 'a') as file:
         file.write(f'Total time: {total_time} seconds.')
+
+    experiment_results = {'max_train_acc': train_results['avg_train_acc'].max(),
+                          'max_train_acc_epoch': train_results['avg_train_acc'].idxmax(),
+                          'max_train_labels_acc': train_results['avg_train_labels_acc'].max(),
+                          'max_train_labels_acc_epoch': train_results['avg_train_labels_acc'].idxmax(),
+                          'max_val_acc': train_results['avg_val_acc'].max(),
+                          'max_val_acc_epoch': train_results['avg_val_acc'].idxmax(),
+                          'max_val_labels_acc': train_results['avg_val_labels_acc'].max(),
+                          'max_val_labels_acc_epoch': train_results['avg_val_labels_acc'].idxmax(),
+                          'test_acc': test_acc}
+    return experiment_results
 
 if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -264,8 +280,8 @@ if __name__ == '__main__':
     if not os.path.exists(result_dir):
         os.makedirs(result_dir)
 
-    experiment_config_file_path = f'{result_dir}/experiments_settings.csv'
-    init_experiment_config_file(experiment_config_file_path, CONFIG_HEADER)
+    experiment_log_file_path = f'{result_dir}/experiments_logs.csv'
+    init_experiment_log_file(experiment_log_file_path, CONFIG_HEADER, RESULTS_HEADER)
 
     num_epochs = 30
 
@@ -309,10 +325,11 @@ if __name__ == '__main__':
                                                    }
                             experiment_settings_str = ','.join([f'{key}={value}' for key, value in experiment_settings.items()])
                             print('running: ' + experiment_settings_str)
-                            write_experiment_config(experiment_config_file_path, experiment_settings, CONFIG_HEADER)
-                            run_experiment(input_df, score, score_threshold_type, score_threshold_value,
+                            experiment_results = run_experiment(input_df, score, score_threshold_type, score_threshold_value,
                                            labels_pred_hidden_layers_config, interest_pred_hidden_layers_config,
                                            learning_rate, batch_size, num_epochs,
                                            le,
                                            output_dir)
+                            log_experiment(experiment_log_file_path, CONFIG_HEADER, experiment_settings, RESULTS_HEADER,
+                                           experiment_results)
                             exp_index += 1
