@@ -57,6 +57,8 @@ def save_df_plot(df, title, output_dir):
     plt.savefig(f'{output_dir}/{title}.jpg')
     plt.cla()
 
+    plt.close()
+
 def results_to_files(results_df, output_dir):
     save_df_plot(df=results_df[['avg_train_loss', 'avg_val_loss']], title='loss', output_dir=output_dir)
     save_df_plot(df=results_df[['avg_train_acc', 'avg_val_acc']], title='accuracy', output_dir=output_dir)
