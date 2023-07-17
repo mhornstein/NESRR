@@ -199,11 +199,9 @@ if __name__ == '__main__':
         os.makedirs(result_dir)
 
     experiment_log_file_path = f'{result_dir}/experiments_logs.csv'
-    init_experiment_log_file(experiment_log_file_path, CONFIG_HEADER, RESULTS_HEADER)
+    exp_index = init_experiment_log_file(experiment_log_file_path, CONFIG_HEADER, RESULTS_HEADER)
 
     num_epochs = 10
-
-    exp_index = 1
 
     input_file = '../data/dummy/dummy_data.csv'
 

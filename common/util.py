@@ -81,10 +81,24 @@ def write_experiment_config(file_path, entry, config_header):
         file.write(','.join(str(value) for value in values) + '\n')
 
 def init_experiment_log_file(file_path, config_header, results_header):
+    '''
+    This function initializes the experiment log file if none exists.
+    If the file already exists, it reads it and fetches the last experiment index out of it,
+    to continue the experiments indexing from that point.
+    Finally, the function returns the experiment index for further use.
+    '''
     if not os.path.exists(file_path):
+        exp_index = 1
         with open(file_path, 'w', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(config_header + results_header)
+    else:
+        df = pd.read_csv(file_path, index_col='exp_index')
+        if len(df) == 0: # the log file was just initialized but never used
+            exp_index = 1
+        else:
+            exp_index = df.index[-1] + 1
+    return exp_index
 
 def log_experiment(file_path, config_header, experiment_config, results_header, experiment_results):
     esc_value = lambda val: str(val).replace(',', '') # remove commas from values' conent, so csv format won't be damaged
