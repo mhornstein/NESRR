@@ -228,7 +228,7 @@ if __name__ == '__main__':
 
     for score in ['mi_score', 'pmi_score']:
         for score_threshold_type in ['percentile', 'std_dist']:
-            score_thresholds = [0.25, 0.5, 0.75] if score_threshold_type == 'percentile' else [-2, -1, 1, 2]
+            score_thresholds = get_thresholds(score, score_threshold_type)
             for score_threshold_value in score_thresholds:
                 for learning_rate in [0.01, 0.05, 0.001, 0.005]:
                     for batch_size in [64, 128, 256]:
