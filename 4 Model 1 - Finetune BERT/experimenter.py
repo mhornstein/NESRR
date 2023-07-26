@@ -17,6 +17,8 @@ BERT_MODEL = 'bert-base-uncased' #  'distilbert-base-uncased'
 CONFIG_HEADER = ['exp_index', 'score', 'score_threshold_type', 'score_threshold_value', 'learning_rate', 'batch_size', 'num_epochs']
 RESULTS_HEADER = ['max_train_acc', 'max_train_acc_epoch', 'max_val_acc', 'max_val_acc_epoch', 'test_acc']
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 ####################
 
 def create_data_loader(tokenizer, X, y, max_length, batch_size, shuffle):
@@ -197,8 +199,6 @@ if __name__ == '__main__':
 
     input_file = sys.argv[1] # e.g. '../data/dummy/dummy_data.csv' or '../data/data.csv'
     result_dir = sys.argv[2] # e.g. 'results'
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     if not os.path.exists(result_dir):
         os.makedirs(result_dir)
