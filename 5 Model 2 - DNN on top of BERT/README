@@ -54,7 +54,7 @@ The result directory will be generated, and inside it, one will find the followi
 How experiment_ids are given?
 =============================
 The script will automatically handle sequential experiment IDs.
-If the script has been run before and results are saved in the "result" directory (given as a parameter to the script), it will read the last used experiment ID and continue from there.
+If the script has been run before - it will find the previous results in the results directory (given as a parameter to the script). it will read the last used experiment ID and continue from there.
 This is beneficial as it allows you to rerun the script multiple times without the need to manually reset the experiment ID.
 
 Script configurations
