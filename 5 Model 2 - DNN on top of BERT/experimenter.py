@@ -16,6 +16,8 @@ BERT_OUTPUT_SHAPE = 768
 CONFIG_HEADER = ['exp_index', 'score', 'score_threshold_type', 'score_threshold_value', 'hidden_layers_config', 'learning_rate', 'batch_size', 'num_epochs']
 RESULTS_HEADER = ['max_train_acc', 'max_train_acc_epoch', 'max_val_acc', 'max_val_acc_epoch', 'test_acc']
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 class BERT_Classifier(nn.Module):
 
     def __init__(self, input_dim, hidden_layers_config):
@@ -208,7 +210,6 @@ def run_experiment(df, score, score_threshold_type, score_threshold_value, hidde
     return experiment_results
 
 if __name__ == '__main__':
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     result_dir = 'results'
 
     if not os.path.exists(result_dir):
