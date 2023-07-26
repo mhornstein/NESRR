@@ -50,7 +50,7 @@ def calc_measurements(model, dataloader, criterion):
     return avg_loss, avg_acc
 
 
-def train_model(model, optimizer, num_epochs, train_dataloader, validation_dataloader, criterion):
+def train_model(model, optimizer, num_epochs, train_dataloader, validation_dataloader, criterion, output_dir):
     print('Evaluating beginning state... ')
     model.eval()
 
@@ -174,7 +174,7 @@ def run_experiment(input_file, score, score_threshold_type, score_threshold_valu
 
     # train model
     print('Start training...')
-    train_results = train_model(model, optimizer, num_epochs, train_dataloader, validation_dataloader, criterion)
+    train_results = train_model(model, optimizer, num_epochs, train_dataloader, validation_dataloader, criterion, output_dir)
 
     # test model
     print('Start testing...')
