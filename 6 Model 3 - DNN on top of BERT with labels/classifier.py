@@ -4,7 +4,8 @@ CONFIG = {
     'score': 'pmi_score', # 'mi_score', 'pmi_score'
     'score_threshold_type': 'percentile', # 'percentile', 'std_dist'
     'score_threshold_value': 0.5, # 0.25, 0.5, 0.75 for precentile; -1, -2 for pmi std; 1, 2 for mi std
-    'hidden_layers_config': [786,0.5,786,0.5,786], # a list with hidden-dim->dropout-rate->hidden-dim->dropout-rate->...
+    'labels_pred_hidden_layers_config': [786,0.5,786,0.5,786], # a list with hidden-dim->dropout-rate->hidden-dim->dropout-rate->...
+    'interest_pred_hidden_layers_config': [786,0.5,786,0.5,786], # a list with hidden-dim->dropout-rate->hidden-dim->dropout-rate->...
     'learning_rate': 0.0001,
     'batch_size': 128,
     'num_epochs': 5
@@ -28,11 +29,19 @@ if __name__ == '__main__':
 
     input_df = create_df(input_file, embeddings_file)
 
+    # encode the labels
+    labels = get_all_possible_labels(input_df)
+    le = LabelEncoder() # encode labels from string ('GPE', 'ORG', ...) to ordinal numbers (0, 1, ...)
+    le.fit(labels)
+    input_df['label1'] = le.transform(input_df['label1'])
+    input_df['label2'] = le.transform(input_df['label2'])
+
     output_dir = f'{result_dir}\\{exp_index}'
 
     experiment_settings_str = ','.join([f'{key}={value}' for key, value in CONFIG.items()])
     print('running: ' + experiment_settings_str)
     experiment_results = run_experiment(input_df, CONFIG['score'], CONFIG['score_threshold_type'], CONFIG['score_threshold_value'],
-                                        CONFIG['hidden_layers_config'], CONFIG['learning_rate'], CONFIG['batch_size'],
-                                        CONFIG['num_epochs'], output_dir)
+                                        CONFIG['labels_pred_hidden_layers_config'], CONFIG['interest_pred_hidden_layers_config'],
+                                        CONFIG['learning_rate'], CONFIG['batch_size'],
+                                        CONFIG['num_epochs'], le, output_dir)
     log_experiment(experiment_log_file_path, CONFIG_HEADER, CONFIG, RESULTS_HEADER, experiment_results)

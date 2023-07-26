@@ -303,7 +303,6 @@ if __name__ == '__main__':
     input_df['label1'] = le.transform(input_df['label1'])
     input_df['label2'] = le.transform(input_df['label2'])
 
-
     for score in ['mi_score', 'pmi_score']:
         for score_threshold_type in ['percentile', 'std_dist']:
             score_thresholds = get_thresholds(score, score_threshold_type)
