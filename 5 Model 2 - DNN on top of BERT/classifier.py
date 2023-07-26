@@ -1,3 +1,5 @@
+import sys
+
 from experimenter import *
 
 CONFIG = {
@@ -11,7 +13,12 @@ CONFIG = {
 }
 
 if __name__ == '__main__':
-    result_dir = 'results'
+    if len(sys.argv) < 4:
+        raise ValueError(f'Not enough arguments. Arguments given: {sys.argv[1:]}')
+
+    input_file = sys.argv[1]  # e.g. '../data/dummy/dummy_data.csv' or '../data/data.csv'
+    embeddings_file = sys.argv[2] # e.g. '../data/dummy/embeddings_dummy.out' or '../data/embeddings.out'
+    result_dir = sys.argv[3] # e.g. 'results'
 
     if not os.path.exists(result_dir):
         os.makedirs(result_dir)
@@ -20,9 +27,6 @@ if __name__ == '__main__':
     exp_index = init_experiment_log_file(log_file_path, CONFIG_HEADER, RESULTS_HEADER)
 
     CONFIG['exp_index'] = exp_index
-
-    embeddings_file = '..\\data\\embeddings.out' # '../data/dummy/embeddings_dummy.out'
-    input_file = '..\\data\\data.csv' # '../data/dummy/dummy_data.csv'
 
     input_df = create_df(input_file, embeddings_file)
 

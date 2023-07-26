@@ -210,7 +210,12 @@ def run_experiment(df, score, score_threshold_type, score_threshold_value, hidde
     return experiment_results
 
 if __name__ == '__main__':
-    result_dir = 'results'
+    if len(sys.argv) < 4:
+        raise ValueError(f'Not enough arguments. Arguments given: {sys.argv[1:]}')
+
+    input_file = sys.argv[1]  # e.g. '../data/dummy/dummy_data.csv' or '../data/data.csv'
+    embeddings_file = sys.argv[2] # e.g. '../data/dummy/embeddings_dummy.out' or '../data/embeddings.out'
+    result_dir = sys.argv[3] # e.g. 'results'
 
     if not os.path.exists(result_dir):
         os.makedirs(result_dir)
@@ -221,9 +226,6 @@ if __name__ == '__main__':
     num_epochs = 30
 
     networks_config_experiment_count = 5
-
-    embeddings_file = '../data/dummy/embeddings_dummy.out' # '../data/embeddings.out'
-    input_file = '../data/dummy/dummy_data.csv' # '../data/data.csv'
 
     input_df = create_df(input_file, embeddings_file)
 
