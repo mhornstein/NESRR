@@ -192,8 +192,13 @@ def run_experiment(input_file, score, score_threshold_type, score_threshold_valu
     return experiment_results
 
 if __name__ == '__main__':
+    if len(sys.argv) < 3:
+        raise ValueError(f'Not enough arguments. Arguments given: {sys.argv[1:]}')
+
+    input_file = sys.argv[1] # e.g. '../data/dummy/dummy_data.csv' or '../data/data.csv'
+    result_dir = sys.argv[2] # e.g. 'results'
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    result_dir = 'results'
 
     if not os.path.exists(result_dir):
         os.makedirs(result_dir)
@@ -202,8 +207,6 @@ if __name__ == '__main__':
     exp_index = init_experiment_log_file(experiment_log_file_path, CONFIG_HEADER, RESULTS_HEADER)
 
     num_epochs = 10
-
-    input_file = '../data/dummy/dummy_data.csv'
 
     for score in ['mi_score', 'pmi_score']:
         for score_threshold_type in ['percentile', 'std_dist']:
