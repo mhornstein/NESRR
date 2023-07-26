@@ -19,6 +19,9 @@ RESULTS_HEADER = ['max_train_acc', 'max_train_acc_epoch', 'max_train_labels_acc'
                   'max_val_acc', 'max_val_acc_epoch', 'max_val_labels_acc', 'max_val_labels_acc_epoch',
                   'test_acc']
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
 class BERT_Classifier(nn.Module):
 
     def __init__(self, input_dim, labels_pred_hidden_layers_config, interest_pred_hidden_layers_config, num_labels):
@@ -274,8 +277,12 @@ def run_experiment(df, score, score_threshold_type, score_threshold_value,
     return experiment_results
 
 if __name__ == '__main__':
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    result_dir = 'results'
+    if len(sys.argv) < 4:
+        raise ValueError(f'Not enough arguments. Arguments given: {sys.argv[1:]}')
+
+    input_file = sys.argv[1]  # e.g. '../data/dummy/dummy_data.csv' or '../data/data.csv'
+    embeddings_file = sys.argv[2]  # e.g. '../data/dummy/embeddings_dummy.out' or '../data/embeddings.out'
+    result_dir = sys.argv[3]  # e.g. 'results'
 
     if not os.path.exists(result_dir):
         os.makedirs(result_dir)
@@ -286,9 +293,6 @@ if __name__ == '__main__':
     num_epochs = 30
 
     networks_config_experiment_count = 5
-
-    embeddings_file = '../data/dummy/embeddings_dummy.out' # '../data/embeddings.out'
-    input_file = '../data/dummy/dummy_data.csv' # '../data/data.csv'
 
     input_df = create_df(input_file, embeddings_file)
 
