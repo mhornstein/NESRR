@@ -1,0 +1,69 @@
+This directory contains 2 scripts:
+
+1. Experimenter - enables to sequentially execute multiple configurations for a given set of possible combination options.
+It is useful for exploring and test various parameter settings in a systematic manner.
+2. Classifier - enables to run a single configuration at a time. It is useful for manual fine-tuning and detailed experimentation.
+
+The tunable parameters are:
+* score: string. can be either 'mi_score' or 'pmi_score'.
+* score_threshold_type: string. can be either 'percentile' or 'std_dist'
+* score_threshold_value: can be either 0.25, 0.5, 0.75 for percentile; -1, -2 for pmi std; 1, 2 for mi std.
+* hidden_layers_config: a list parameter that defines the structure of the hidden layers in the format [hidden_dim, dropout_rate, hidden_dim, dropout_rate, ...].
+For configurations with no dropout, you can use None. For example, [786, 0.5, 786, None, 786] represents a network with three hidden layers, each having a dimension of 786 and the first one has a dropout rate of 0.5.
+'learning_rate': floating point representing the learning rate.
+'batch_size': integer representing the batch size.
+'num_epochs': integer representing epoch number.
+
+Both script requires 3 commandline arguments:
+1. The path for the dataset created in part 2a.
+2. The path for the embeddings created in part 2b.
+3. The name of the directory in which the results will be saved (The script creates it if doesn't exist).
+
+The Experimenter.py Script
+==========================
+
+How to run the script?
+======================
+In the command prompt, type:
+python experimenter.py <path to dataset> <path to embeddings> <name of result directory>
+Path can be either relative or absolute.
+
+for example:
+python experimenter.py ../data/data.csv ../data/embeddings.out results
+or:
+python experimenter.py ../data/dummy/dummy_data.csv ../data/dummy/embeddings_dummy.out results
+
+Script output
+=============
+Progress will be shown on the console.
+The result directory will be generated, and inside it, one will find the following:
+1. `experiments_logs.csv`: stores each experiment's ID, its configuration, and some results, such as accuracy scores.
+2. Directories numbered 1, 2, ... corresponding to the experiment_id. Each directory will contain the following files:
+   - `accuracy.jpg`: graph displaying the training and validation accuracy.
+   - `loss.jpg`: graph illustrating the training and validation loss.
+   - `test_predictions_results.csv`: a CSV file containing the model's results when applied to the test set. This file includes both the classifications and the corresponding sentences and labels to assist in the evaluation.
+   - `test_report.txt`: a text file providing the classification report of the test-set (containing measurements such as recall, precision, F1 etc).
+   - `epochs-time.jpg`: graph representing the time taken for each epoch.
+   - `total_time.txt`: text file holding the total time required for the experiment.
+   - `train_logs.csv`: a CSV file containing the raw data of the training progress used to create accuracy.jpg, loss.jpg, and epochs-time.jpg.
+
+How experiment_ids are given?
+=============================
+The script will automatically handle sequential experiment IDs.
+If the script has been run before and results are saved in the "result" directory (given as a parameter to the script), it will read the last used experiment ID and continue from there.
+This is beneficial as it allows you to rerun the script multiple times without the need to manually reset the experiment ID.
+
+Script configurations
+=====================
+To change the experimented configurations, change the configurations in the loops within the script.
+
+-------------------------------------------------------------------------------------------------
+
+The Classifier.py script
+========================
+This script works in the same manner as the experimenter.py is, in the sense of how to run it and how its outputs look like.
+The only difference is how to change the configuration of the single run.
+
+Script configurations
+=====================
+To change the experimented configurations, change the CONFIG dictionary within the script.
