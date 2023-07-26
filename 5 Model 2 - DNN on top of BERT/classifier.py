@@ -1,5 +1,3 @@
-import sys
-
 from experimenter import *
 
 CONFIG = {
@@ -23,8 +21,8 @@ if __name__ == '__main__':
     if not os.path.exists(result_dir):
         os.makedirs(result_dir)
 
-    log_file_path = f'{result_dir}\\experiments_logs.csv'
-    exp_index = init_experiment_log_file(log_file_path, CONFIG_HEADER, RESULTS_HEADER)
+    experiment_log_file_path = f'{result_dir}\\experiments_logs.csv'
+    exp_index = init_experiment_log_file(experiment_log_file_path, CONFIG_HEADER, RESULTS_HEADER)
 
     CONFIG['exp_index'] = exp_index
 
@@ -32,9 +30,9 @@ if __name__ == '__main__':
 
     output_dir = f'{result_dir}\\{exp_index}'
 
-    settings_str = ','.join([f'{key}={value}' for key, value in CONFIG.items()])
-    print('running: ' + settings_str)
-    results = run_experiment(input_df, CONFIG['score'], CONFIG['score_threshold_type'], CONFIG['score_threshold_value'],
-                             CONFIG['hidden_layers_config'], CONFIG['learning_rate'], CONFIG['batch_size'],
-                             CONFIG['num_epochs'], output_dir)
-    log_experiment(log_file_path, CONFIG_HEADER, CONFIG, RESULTS_HEADER, results)
+    experiment_settings_str = ','.join([f'{key}={value}' for key, value in CONFIG.items()])
+    print('running: ' + experiment_settings_str)
+    experiment_results = run_experiment(input_df, CONFIG['score'], CONFIG['score_threshold_type'], CONFIG['score_threshold_value'],
+                                        CONFIG['hidden_layers_config'], CONFIG['learning_rate'], CONFIG['batch_size'],
+                                        CONFIG['num_epochs'], output_dir)
+    log_experiment(experiment_log_file_path, CONFIG_HEADER, CONFIG, RESULTS_HEADER, experiment_results)

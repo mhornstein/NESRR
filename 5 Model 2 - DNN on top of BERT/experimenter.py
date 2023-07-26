@@ -213,7 +213,7 @@ if __name__ == '__main__':
     if len(sys.argv) < 4:
         raise ValueError(f'Not enough arguments. Arguments given: {sys.argv[1:]}')
 
-    input_file = sys.argv[1]  # e.g. '../data/dummy/dummy_data.csv' or '../data/data.csv'
+    input_file = sys.argv[1] # e.g. '../data/dummy/dummy_data.csv' or '../data/data.csv'
     embeddings_file = sys.argv[2] # e.g. '../data/dummy/embeddings_dummy.out' or '../data/embeddings.out'
     result_dir = sys.argv[3] # e.g. 'results'
 
