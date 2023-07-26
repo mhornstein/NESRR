@@ -7,7 +7,7 @@ CONFIG = {
     'hidden_layers_config': [786,0.5,786,0.5,786], # a list with hidden-dim->dropout-rate->hidden-dim->dropout-rate->...
     'learning_rate': 0.0001,
     'batch_size': 128,
-    'num_epochs': 15
+    'num_epochs': 5
 }
 
 if __name__ == '__main__':
