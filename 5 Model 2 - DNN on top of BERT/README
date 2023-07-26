@@ -57,13 +57,7 @@ Script configurations
 =====================
 To change the experimented configurations, change the configurations in the loops within the script.
 
--------------------------------------------------------------------------------------------------
-
 The Classifier.py script
 ========================
 This script works in the same manner as the experimenter.py is, in the sense of how to run it and how its outputs look like.
-The only difference is how to change the configuration of the single run.
-
-Script configurations
-=====================
-To change the experimented configurations, change the CONFIG dictionary within the script.
+The only difference is how to change the configuration of the single run: to change the experimented configurations, change the CONFIG dictionary within the script.
