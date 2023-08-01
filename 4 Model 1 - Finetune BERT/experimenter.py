@@ -212,8 +212,8 @@ if __name__ == '__main__':
         for score_threshold_type in ['percentile', 'std_dist']:
             score_thresholds = get_thresholds(score, score_threshold_type)
             for score_threshold_value in score_thresholds:
-                for learning_rate in [0.01, 0.05, 0.001, 0.005]:
-                    for batch_size in [64, 128, 256]:
+                for learning_rate in [0.01, 0.001, 0.005]:
+                    for batch_size in [64, 128]:
                         output_dir = f'{result_dir}\\{exp_index}'
                         experiment_settings = {
                                                 'exp_index': exp_index,

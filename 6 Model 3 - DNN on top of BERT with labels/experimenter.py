@@ -292,7 +292,7 @@ if __name__ == '__main__':
 
     num_epochs = 30
 
-    networks_config_experiment_count = 5
+    networks_config_experiment_count = 3
 
     input_df = create_df(input_file, embeddings_file)
 
@@ -307,8 +307,8 @@ if __name__ == '__main__':
         for score_threshold_type in ['percentile', 'std_dist']:
             score_thresholds = get_thresholds(score, score_threshold_type)
             for score_threshold_value in score_thresholds:
-                for learning_rate in [0.01, 0.05, 0.001, 0.005]:
-                    for batch_size in [64, 128, 256]:
+                for learning_rate in [0.01, 0.001, 0.005]:
+                    for batch_size in [64, 128]:
                         for i in range(networks_config_experiment_count):
                             labels_pred_hidden_layers_config = draw_hidden_layers_config()
                             interest_pred_hidden_layers_config = draw_hidden_layers_config()
