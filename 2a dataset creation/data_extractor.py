@@ -252,7 +252,7 @@ def calc_pmi_score(ent1, ent2, entities_count, pairs_count, n_entities, n_pairs)
     p_ent2 = entities_count[ent2] / n_entities
     p_ent1_ent2 = pairs_count[(ent1, ent2)] / n_pairs
 
-    return math.log2(p_ent1_ent2) / (p_ent1 * p_ent2)
+    return math.log2(p_ent1_ent2 / (p_ent1 * p_ent2))
 
 def create_dataset(sentences_data, entities_prob, pairs_prob, entities_count, pairs_count, output_file):
     csvfile = open(output_file, 'w', newline='', encoding='utf8')
