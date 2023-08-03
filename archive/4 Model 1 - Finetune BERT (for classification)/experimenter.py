@@ -8,7 +8,7 @@ warnings.filterwarnings("ignore", category=FutureWarning) # Disable the warning
 import sys
 from sklearn.metrics import classification_report, accuracy_score
 
-sys.path.append('..\\')
+sys.path.append('../..\\')
 from common.util import *
 from common.classifier_util import *
 
