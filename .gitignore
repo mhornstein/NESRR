@@ -12,3 +12,4 @@ archive/part4/embedding_extractor_output/embeddings.out
 common/__pycache__/regressor_util.cpython-310.pyc
 common/__pycache__/classifier_util.cpython-310.pyc
 common/__pycache__/util.cpython-310.pyc
+archive/*
