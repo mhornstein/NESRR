@@ -178,10 +178,7 @@ def run_experiment(df, score, hidden_layers_config, learning_rate, batch_size, n
     model = BERT_Classifier(input_dim=BERT_OUTPUT_SHAPE, hidden_layers_config=hidden_layers_config)
     model.to(device)
 
-    # Preparing the loss: due to data imbalance, we will use weighted loss function instead of the out-of-the-box BERT's.
-    # reference: https://discuss.huggingface.co/t/class-weights-for-bertforsequenceclassification/1674/6
-    weight = calc_weight(y_train)
-    criterion = nn.CrossEntropyLoss(weight=weight, reduction='mean')
+    criterion = nn.CrossEntropyLoss()
 
     # Preparing the optimizer
     optimizer = AdamW(model.parameters(), lr=learning_rate)
