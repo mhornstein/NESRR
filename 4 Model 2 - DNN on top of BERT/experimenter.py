@@ -13,7 +13,7 @@ from common.classifier_util import *
 
 BERT_OUTPUT_SHAPE = 768
 
-CONFIG_HEADER = ['exp_index', 'score', 'score_threshold_type', 'score_threshold_value', 'hidden_layers_config', 'learning_rate', 'batch_size', 'num_epochs']
+CONFIG_HEADER = ['exp_index', 'score', 'hidden_layers_config', 'learning_rate', 'batch_size', 'num_epochs']
 RESULTS_HEADER = ['max_train_acc', 'max_train_acc_epoch', 'max_val_acc', 'max_val_acc_epoch', 'test_acc']
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -159,7 +159,7 @@ def test_model(model, test_dataloader, df, criterion, output_dir):
     accuracy = accuracy_score(all_test_targets, all_test_predictions)
     return accuracy
 
-def run_experiment(df, score, score_threshold_type, score_threshold_value, hidden_layers_config, learning_rate, batch_size, num_epochs, output_dir):
+def run_experiment(df, score, hidden_layers_config, learning_rate, batch_size, num_epochs, output_dir):
     total_start_time = time.time()
 
     if not os.path.exists(output_dir):
@@ -167,7 +167,7 @@ def run_experiment(df, score, score_threshold_type, score_threshold_value, hidde
 
     # Preparing the data
     X_train, X_tmp, y_train, y_tmp = train_test_split(df.iloc[:, :BERT_OUTPUT_SHAPE], df[score], random_state=42, test_size=0.4)
-    y_train, y_tmp = score_to_label(y_train, y_tmp, score_threshold_type, score_threshold_value)
+    y_train, y_tmp = score_to_label(y_train, y_tmp)
 
     X_val, X_test, y_val, y_test = train_test_split(X_tmp, y_tmp, random_state=42, test_size=0.5)
     train_dataloader = create_data_loader(X_train, y_train, batch_size, shuffle=True)
@@ -228,27 +228,21 @@ if __name__ == '__main__':
     input_df = create_df(input_file, embeddings_file)
 
     for score in ['mi_score', 'pmi_score']:
-        for score_threshold_type in ['percentile', 'std_dist']:
-            score_thresholds = get_thresholds(score, score_threshold_type)
-            for score_threshold_value in score_thresholds:
-                for learning_rate in [0.01, 0.001, 0.005]:
-                    for batch_size in [64, 128]:
-                        for i in range(networks_config_experiment_count):
-                            hidden_layers_config = draw_hidden_layers_config()
-                            output_dir = f'{result_dir}\\{exp_index}'
-                            experiment_settings = {
-                                                    'exp_index': exp_index,
-                                                    'score': score,
-                                                    'score_threshold_type': score_threshold_type,
-                                                    'score_threshold_value': score_threshold_value,
-                                                    'hidden_layers_config': hidden_layers_config,
-                                                    'learning_rate': learning_rate,
-                                                    'batch_size': batch_size,
-                                                    'num_epochs': num_epochs
-                                                   }
-                            experiment_settings_str = ','.join([f'{key}={value}' for key, value in experiment_settings.items()])
-                            print('running: ' + experiment_settings_str)
-                            experiment_results = run_experiment(input_df, score, score_threshold_type, score_threshold_value,
-                                           hidden_layers_config, learning_rate, batch_size, num_epochs, output_dir)
-                            log_experiment(experiment_log_file_path, CONFIG_HEADER, experiment_settings, RESULTS_HEADER, experiment_results)
-                            exp_index += 1
+        for learning_rate in [0.01, 0.001, 0.005]:
+            for batch_size in [64, 128]:
+                for i in range(networks_config_experiment_count):
+                    hidden_layers_config = draw_hidden_layers_config()
+                    output_dir = f'{result_dir}\\{exp_index}'
+                    experiment_settings = {
+                                            'exp_index': exp_index,
+                                            'score': score,
+                                            'hidden_layers_config': hidden_layers_config,
+                                            'learning_rate': learning_rate,
+                                            'batch_size': batch_size,
+                                            'num_epochs': num_epochs
+                                           }
+                    experiment_settings_str = ','.join([f'{key}={value}' for key, value in experiment_settings.items()])
+                    print('running: ' + experiment_settings_str)
+                    experiment_results = run_experiment(input_df, score, hidden_layers_config, learning_rate, batch_size, num_epochs, output_dir)
+                    log_experiment(experiment_log_file_path, CONFIG_HEADER, experiment_settings, RESULTS_HEADER, experiment_results)
+                    exp_index += 1
