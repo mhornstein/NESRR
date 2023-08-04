@@ -23,9 +23,7 @@ class BERT_Classifier(nn.Module):
     def __init__(self, input_dim, hidden_layers_config):
         '''
         :param input_dim: the input dimension of the network
-        :param hidden_layers_config: indicates the hidden layers configuration of the network. \
-                                     its format: [hidden_dim_1, dropout_rate_1, hidden_dim_2, dropout_rate_2, ...]. \
-                                     for no dropout layer, use None value.
+        :param hidden_layers_config: indicates the hidden layers configuration of the network. Its format: [hidden_dim_1, hidden_dim_2, ...]
         '''
         super(BERT_Classifier, self).__init__()
         self.model = create_network(input_dim=input_dim, hidden_layers_config=hidden_layers_config, output_dim=2)
