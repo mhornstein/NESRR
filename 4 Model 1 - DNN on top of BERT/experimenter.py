@@ -7,7 +7,7 @@ warnings.filterwarnings("ignore", category=FutureWarning) # Disable the warning
 import sys
 from sklearn.metrics import classification_report, accuracy_score
 
-sys.path.append('../')
+sys.path.append('..\\')
 from common.util import *
 from common.classifier_util import *
 
@@ -149,9 +149,9 @@ def test_model(model, test_dataloader, df, criterion, output_dir):
 
     test_classification_report = classification_report(all_test_targets, all_test_predictions, zero_division=1)
 
-    out_df.to_csv(f'{output_dir}/test_predictions_results.csv', index=True)
+    out_df.to_csv(f'{output_dir}\\test_predictions_results.csv', index=True)
 
-    with open(f'{output_dir}/test_report.txt', 'w') as file:
+    with open(f'{output_dir}\\test_report.txt', 'w') as file:
         file.write(f'Test average loss: {avg_test_loss}.\n')
         file.write(f'Test classification report:\n')
         file.write(test_classification_report)
@@ -194,7 +194,7 @@ def run_experiment(df, score, hidden_layers_config, learning_rate, batch_size, n
     total_time = time.time() - total_start_time
     print(f'Done. total time: {total_time} seconds.\n')
 
-    with open(f'{output_dir}/total_time.txt', 'a') as file:
+    with open(f'{output_dir}\\total_time.txt', 'a') as file:
         file.write(f'Total time: {total_time} seconds.')
 
     experiment_results = {'max_train_acc': train_results['avg_train_acc'].max(),
@@ -215,7 +215,7 @@ if __name__ == '__main__':
     if not os.path.exists(result_dir):
         os.makedirs(result_dir)
 
-    experiment_log_file_path = f'{result_dir}/experiments_logs.csv'
+    experiment_log_file_path = f'{result_dir}\\experiments_logs.csv'
     exp_index = init_experiment_log_file(experiment_log_file_path, CONFIG_HEADER, RESULTS_HEADER)
 
     num_epochs = 40
@@ -229,7 +229,7 @@ if __name__ == '__main__':
             for batch_size in [256, 128, 64]:
                 for i in range(networks_config_experiment_count):
                     hidden_layers_config = draw_hidden_layers_config()
-                    output_dir = f'{result_dir}/{exp_index}'
+                    output_dir = f'{result_dir}\\{exp_index}'
                     experiment_settings = {
                                             'exp_index': exp_index,
                                             'score': score,
