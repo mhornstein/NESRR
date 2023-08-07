@@ -2,7 +2,7 @@ from experimenter import *
 
 CONFIG = {
     'score': 'pmi_score', # 'mi_score', 'pmi_score'
-    'hidden_layers_config': [768, 768], # a list with hidden-dim->dropout-rate->hidden-dim->dropout-rate->...
+    'hidden_layers_config': [768, 768], # a list of hidden layers dims
     'learning_rate': 0.001,
     'batch_size': 64,
     'num_epochs': 30

@@ -2,10 +2,8 @@ from experimenter import *
 
 CONFIG = {
     'score': 'pmi_score', # 'mi_score', 'pmi_score'
-    'score_threshold_type': 'percentile', # 'percentile', 'std_dist'
-    'score_threshold_value': 0.5, # 0.25, 0.5, 0.75 for precentile; -1, -2 for pmi std; 1, 2 for mi std
-    'labels_pred_hidden_layers_config': [786,0.5,786,0.5,786], # a list with hidden-dim->dropout-rate->hidden-dim->dropout-rate->...
-    'interest_pred_hidden_layers_config': [786,0.5,786,0.5,786], # a list with hidden-dim->dropout-rate->hidden-dim->dropout-rate->...
+    'labels_pred_hidden_layers_config': [768, 768], # a list of hidden layers dims
+    'interest_pred_hidden_layers_config': [768, 768], # a list of hidden layers dims
     'learning_rate': 0.0001,
     'batch_size': 128,
     'num_epochs': 5
@@ -40,7 +38,7 @@ if __name__ == '__main__':
 
     experiment_settings_str = ','.join([f'{key}={value}' for key, value in CONFIG.items()])
     print('running: ' + experiment_settings_str)
-    experiment_results = run_experiment(input_df, CONFIG['score'], CONFIG['score_threshold_type'], CONFIG['score_threshold_value'],
+    experiment_results = run_experiment(input_df, CONFIG['score'],
                                         CONFIG['labels_pred_hidden_layers_config'], CONFIG['interest_pred_hidden_layers_config'],
                                         CONFIG['learning_rate'], CONFIG['batch_size'],
                                         CONFIG['num_epochs'], le, output_dir)
