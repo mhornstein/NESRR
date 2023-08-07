@@ -239,11 +239,10 @@ def run_experiment(df, score,
                             num_labels=len(le.classes_))
     model.to(device)
 
+    interest_criterion = nn.CrossEntropyLoss()
+
     # Preparing the loss: due to data imbalance, we will use weighted loss function instead of the out-of-the-box BERT's.
     # reference: https://discuss.huggingface.co/t/class-weights-for-bertforsequenceclassification/1674/6
-    weight = calc_weight(y_train)
-    interest_criterion = nn.CrossEntropyLoss(weight=weight, reduction='mean')
-
     train_labels = X_train[['label1', 'label2']].stack().droplevel(1)
     weight = calc_weight(train_labels)
     labels_criterion = nn.CrossEntropyLoss(weight=weight, reduction='mean')
