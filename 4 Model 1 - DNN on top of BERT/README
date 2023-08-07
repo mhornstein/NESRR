@@ -10,10 +10,7 @@ It is useful for exploring and test various parameter settings in a systematic m
 
 The tunable parameters are:
 * score: string. can be either 'mi_score' or 'pmi_score'.
-* score_threshold_type: string. can be either 'percentile' or 'std_dist'
-* score_threshold_value: can be either 0.25, 0.5, 0.75 for percentile; -1, -2 for pmi std; 1, 2 for mi std.
-* hidden_layers_config: a list parameter that defines the structure of the hidden layers in the format [hidden_dim, dropout_rate, hidden_dim, dropout_rate, ...].
-For configurations with no dropout, you can use None. For example, [786, 0.5, 786, None, 786] represents a network with three hidden layers, each having a dimension of 786 and the first one has a dropout rate of 0.5.
+* hidden_layers_config: a list parameter that defines the structure of the hidden layers. For example, [786, 786] represents a network with two hidden layers, each having a dimension of 786.
 * learning_rate: floating point representing the learning rate.
 * batch_size: integer representing the batch size.
 * num_epochs: integer representing epoch number.
@@ -54,7 +51,7 @@ The result directory will be generated, and inside it, one will find the followi
 How experiment_ids are given?
 =============================
 The script will automatically handle sequential experiment IDs.
-If the script has been run before - it will find the previous results in the results directory (given as a parameter to the script). it will read the last used experiment ID and continue from there.
+If the script has been run before - it will find the previous results in the results directory (given as a parameter to the script): it will read the last used experiment ID and continue from there.
 This is beneficial as it allows you to rerun the script multiple times without the need to manually reset the experiment ID.
 
 Script configurations
