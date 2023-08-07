@@ -289,7 +289,7 @@ if __name__ == '__main__':
     experiment_log_file_path = f'{result_dir}\\experiments_logs.csv'
     exp_index = init_experiment_log_file(experiment_log_file_path, CONFIG_HEADER, RESULTS_HEADER)
 
-    num_epochs = 30
+    num_epochs = 40
 
     networks_config_experiment_count = 3
 
@@ -303,8 +303,8 @@ if __name__ == '__main__':
     input_df['label2'] = le.transform(input_df['label2'])
 
     for score in ['mi_score', 'pmi_score']:
-        for learning_rate in [0.01, 0.001, 0.005]:
-            for batch_size in [64, 128]:
+        for learning_rate in [0.01, 0.05, 0.001, 0.005]:
+            for batch_size in [256, 128, 64]:
                 for i in range(networks_config_experiment_count):
                     labels_pred_hidden_layers_config = draw_hidden_layers_config()
                     interest_pred_hidden_layers_config = draw_hidden_layers_config()
