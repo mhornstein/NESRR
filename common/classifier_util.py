@@ -48,13 +48,3 @@ def create_batch_result_df(data_df, sent_ids, targets, predictions, is_correct):
     batch_df = pd.concat([batch_results, batch_data], axis=1)
 
     return batch_df
-
-def get_thresholds(score, score_threshold_type):
-    if score_threshold_type == 'percentile':
-        return [0.25, 0.5, 0.75]
-    elif score_threshold_type == 'std_dist':
-        if score == 'pmi_score': # pmi_score always negative
-            return [-1, -2]
-        elif score == 'mi_score': # mi score always positive
-            return [1, 2]
-    raise ValueError(f'Cannot get thresholds for score {score} with treshold {score_threshold_type}')
