@@ -63,6 +63,9 @@ if __name__ == '__main__':
                     'heuristic_threshold': heuristic_threshold
                 }
 
+                experiment_settings_str = ','.join([f'{key}={value}' for key, value in experiment_settings.items()])
+                print('running: ' + experiment_settings_str)
+
                 train_predictions = (X_train > heuristic_threshold).astype(int).values
                 val_predictions = (X_val > heuristic_threshold).astype(int).values
                 test_predictions = (X_test > heuristic_threshold).astype(int).values
