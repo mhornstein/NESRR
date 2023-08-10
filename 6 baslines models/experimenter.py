@@ -2,7 +2,7 @@ import sys
 from sklearn.model_selection import train_test_split
 from common.util import *
 from common.classifier_util import *
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, classification_report
 import spacy
 
 sys.path.append('..\\')
@@ -36,6 +36,10 @@ if __name__ == '__main__':
 
     if not os.path.exists(result_dir):
         os.makedirs(result_dir)
+
+    test_classification_report_dir = f'{result_dir}\\test_classification_reports'
+    if not os.path.exists(test_classification_report_dir):
+        os.makedirs(test_classification_report_dir)
 
     experiment_log_file_path = f'{result_dir}\\experiments_logs.csv'
     exp_index = init_experiment_log_file(experiment_log_file_path, CONFIG_HEADER, RESULTS_HEADER)
@@ -73,6 +77,11 @@ if __name__ == '__main__':
                 experiment_results = {'train_acc': accuracy_score(y_train, train_predictions),
                                       'val_acc': accuracy_score(y_val, val_predictions),
                                       'test_acc': accuracy_score(y_test, test_predictions)}
+
+                test_classification_report = classification_report(y_test, test_predictions, zero_division=1)
+                with open(f'{test_classification_report_dir}\\{exp_index}.txt', 'w') as file:
+                    file.write(f'Test classification report:\n')
+                    file.write(test_classification_report)
 
                 log_experiment(experiment_log_file_path, CONFIG_HEADER, experiment_settings, RESULTS_HEADER, experiment_results)
                 exp_index += 1
