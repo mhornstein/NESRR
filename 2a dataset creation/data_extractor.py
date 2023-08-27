@@ -82,7 +82,8 @@ def text_to_sentence_data(texts):
 
         for sent in doc.sents:
             entities = sent.ents
-            filtered_entities = {(entity.text, entity.label_) for entity in entities if entity.label_ in ENTITIES_TYPES}
+            sentence_offset = sent.start_char # we need to take into account the offset of the given sentence from the begining of the entire doc
+            filtered_entities = {(entity.text, entity.label_, entity.start_char-sentence_offset, entity.end_char-sentence_offset) for entity in entities if entity.label_ in ENTITIES_TYPES}
             if len(filtered_entities) == 0:
                 continue
             else:
@@ -155,7 +156,7 @@ def extract_sentences_stats(sentences_data):
             pairs_labels_count[(ent1[1], ent2[1])] += 1
             pairs_labels_count[(ent2[1], ent1[1])] += 1
 
-        for ent_txt, ent_label in entities:
+        for ent_txt, ent_label, _, _ in entities:
             entities_count[ent_txt] += 1
             labels_count[ent_label] += 1
 
@@ -264,23 +265,17 @@ def create_dataset(sentences_data, entities_prob, pairs_prob, entities_count, pa
     for sent_id in sorted(list(sentences_data.keys())):
         sent_data = sentences_data[sent_id]
         sent = sent_data.txt
-        ent1, label1 = sent_data.entities[0]
-        ent2, label2 = sent_data.entities[1]
+        ent1, label1, ent1_start_char, ent1_end_char = sent_data.entities[0]
+        ent2, label2, ent2_start_char, ent2_end_char = sent_data.entities[1]
         mi_score = calc_mi_score(ent1, ent2, entities_prob, pairs_prob) # mi score required the lexicographic order as present in the counts
         pmi_score = calc_pmi_score(ent1, ent2, entities_count, pairs_count, n_entities, n_pairs)
 
         # masking
-        if sent.find(ent1) > sent.find(ent2): # switch entities order to fit the sentence order
-            ent1, label1 = sent_data.entities[1]
-            ent2, label2 = sent_data.entities[0]
+        if ent1_start_char > ent2_start_char: # switch entities order to fit the sentence order
+            ent1, label1, ent1_start_char, ent1_end_char = sent_data.entities[1]
+            ent2, label2, ent2_start_char, ent2_end_char = sent_data.entities[0]
 
-        s1 = sent.find(ent1)
-        e1 = s1 + len(ent1)
-
-        s2 = sent.find(ent2)
-        e2 = s2 + len(ent2)
-
-        masked_sent = sent[0:s1] + MASK_LABEL + sent[e1:s2] + MASK_LABEL + sent[e2:]
+        masked_sent = sent[0:ent1_start_char] + MASK_LABEL + sent[ent1_end_char:ent2_start_char] + MASK_LABEL + sent[ent2_end_char:]
 
         entry = [sent_id, sent, masked_sent, ent1, label1, ent2, label2, mi_score, pmi_score]
         writer.writerow(entry)
