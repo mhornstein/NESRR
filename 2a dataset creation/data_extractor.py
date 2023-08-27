@@ -40,7 +40,16 @@ class SentenceData:
         self.entities = entities
 
     def filter_entities(self, entities_to_keep):
-        self.entities = {ent for ent in self.entities if ent[0] in entities_to_keep}
+        self.entities = [ent for ent in self.entities if ent[0] in entities_to_keep]
+
+    def sample_duplicate_entities(self):
+        '''
+        We eliminate cases in which the same entity appears more than once in the sentence with identical content,
+        as these cases are neither interesting nor relevant.
+        '''
+        entities_set = {ent[0] for ent in self.entities}
+        sampled_entities = [random.choice([e for e in self.entities if e[0] == ent]) for ent in entities_set]
+        self.entities = sampled_entities
 
 '''
 We load spacy and disable irrelevant component for NER extraction
@@ -83,7 +92,7 @@ def text_to_sentence_data(texts):
         for sent in doc.sents:
             entities = sent.ents
             sentence_offset = sent.start_char # we need to take into account the offset of the given sentence from the begining of the entire doc
-            filtered_entities = {(entity.text, entity.label_, entity.start_char-sentence_offset, entity.end_char-sentence_offset) for entity in entities if entity.label_ in ENTITIES_TYPES}
+            filtered_entities = [(entity.text, entity.label_, entity.start_char-sentence_offset, entity.end_char-sentence_offset) for entity in entities if entity.label_ in ENTITIES_TYPES]
             if len(filtered_entities) == 0:
                 continue
             else:
@@ -117,7 +126,7 @@ def extract_probs(sentences_data):
         entities = sent_data.entities
 
         if len(entities) == 1:
-            entity = next(iter(entities))
+            entity = entities[0]
             sorted_entities = [entity, NULL_ENTITY]
         else:
             sorted_entities = sorted(entities, key=lambda x: x[0])  # Keep lexicographic order
@@ -214,9 +223,7 @@ def sample_sentences(sentences_data, n):
 
 def sample_entities_in_sentences(sentences_data):
     for sentence_data in sentences_data.values():
-        entities = sentence_data.entities
-        entities = random.sample(list(entities), 2)
-        sentence_data.entities = entities
+        sentence_data.entities = random.sample(sentence_data.entities, 2)
 
 def calc_mi_score(ent1, ent2, entities_prob, pairs_prob):
     ent1, ent2 = (ent1, ent2) if ent1 < ent2 else (ent2, ent1) # Keep lexicographic order
@@ -346,6 +353,7 @@ if __name__ == '__main__':
     filtered_entities_set = {key for key, value in entities_count.items() if value >= K}
     for sentence_data in sentences_data.values():
         sentence_data.filter_entities(filtered_entities_set)
+        sentence_data.sample_duplicate_entities()
     sentences_data = { i: s_data for i, s_data in sentences_data.items() if len(s_data.entities) >= 2 }
     print(f'Entities >= {K} found: {len(filtered_entities_set)}')
     print(f'Number of sentences left after filtering entities < K: {len(sentences_data)}')
@@ -358,7 +366,7 @@ if __name__ == '__main__':
     assert sum(sample_labels_count.values()) == 2 * N
     assert sum(sample_pairs_count.values()) == N
     assert sum(sample_pairs_labels_count.values()) == 2 * N
-    plot_stats(sample_entities_count, sample_labels_count, sample_pairs_count, sample_pairs_labels_count, output_dir='sampled_sentences_stats')
+    plot_stats(sample_entities_count, sample_labels_count, sample_pairs_count, sample_pairs_labels_count, output_dir='../3 EDA/sampled_sentences_stats')
 
     # Step 3: create the dataset according to the samples and the measurements taken
 
