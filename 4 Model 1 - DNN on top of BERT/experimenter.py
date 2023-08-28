@@ -124,7 +124,7 @@ def test_model(model, test_dataloader, df, criterion, output_dir):
     all_test_targets = []
     all_test_predictions = []
 
-    out_df = pd.DataFrame(columns=['target_label', 'predicted_label', 'is_correct',
+    out_df = pd.DataFrame(columns=['target_label', 'predicted_label', 'predicted_score', 'is_correct',
                                    'ent1', 'label1', 'ent2', 'label2', 'masked_sent'])
     test_total_loss = 0
     with torch.no_grad():
@@ -133,6 +133,8 @@ def test_model(model, test_dataloader, df, criterion, output_dir):
             test_outputs = model(test_embeddings)
             test_total_loss += criterion(test_outputs, test_targets).item()
 
+            predicted_score = torch.sigmoid(test_outputs[:, 1])
+
             test_predictions = logit_to_predicted_label(test_outputs)
             is_correct = test_targets == test_predictions
 
@@ -140,7 +142,8 @@ def test_model(model, test_dataloader, df, criterion, output_dir):
             all_test_predictions += test_predictions.tolist()
 
             batch_df = create_batch_result_df(data_df=df, sent_ids=test_sent_ids, targets=test_targets,
-                                              predictions=test_predictions, is_correct=is_correct)
+                                              predictions=test_predictions, predicted_score=predicted_score,
+                                              is_correct=is_correct)
 
             out_df = pd.concat([out_df, batch_df], ignore_index=False)
 

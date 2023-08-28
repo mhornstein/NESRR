@@ -34,10 +34,11 @@ def calc_weight(labels):
 
     return torch.tensor(class_weights, dtype=torch.float32) # dtype of float 32 is the requirement of the weight
 
-def create_batch_result_df(data_df, sent_ids, targets, predictions, is_correct):
+def create_batch_result_df(data_df, sent_ids, targets, predictions, predicted_score, is_correct):
     batch_results = pd.DataFrame({'sent_ids': sent_ids.squeeze().numpy(),
                                   'target_label': targets.squeeze().numpy(),
                                   'predicted_label': predictions.squeeze().numpy(),
+                                  'predicted_score': predicted_score.squeeze().numpy(),
                                   'is_correct': is_correct.squeeze().numpy()})
     batch_results = batch_results.set_index('sent_ids', drop=True)
     batch_results.index.name = None  # remove index column name
