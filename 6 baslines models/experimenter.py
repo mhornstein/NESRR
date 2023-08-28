@@ -4,6 +4,7 @@ from common.util import *
 from common.classifier_util import *
 from sklearn.metrics import accuracy_score, classification_report
 import spacy
+import time
 
 sys.path.append('..\\')
 
@@ -20,14 +21,19 @@ def get_heuristics_scores(s):
 
     entities_count = len(doc.ents)
 
-    mask_token_indices = [token.i for token in doc if token.text == 'MASK']
-    mask_dist = mask_token_indices[1] - mask_token_indices[0] - 3 # substracting [ and ] that are also considered tokens
+    mask_token_indices = [token.i for token in doc if 'MASK' in token.text]
+    if len(mask_token_indices) == 1: # The two MASK placeholders appear in the same token. This occurs in cases like: [MASK]-to-[MASK] or [MASK]-[MASK]
+        mask_dist = 0
+    else:
+        mask_dist = mask_token_indices[1] - mask_token_indices[0]
 
     random_score = random.choice([0, 1])
 
     return entities_count, mask_dist, random_score
 
 if __name__ == '__main__':
+    start_time = time.time()
+
     if len(sys.argv) < 3:
         raise ValueError(f'Not enough arguments. Arguments given: {sys.argv[1:]}')
 
@@ -47,7 +53,11 @@ if __name__ == '__main__':
     df = pd.read_csv(input_file)
     df = df.set_index('sent_id')
 
+    print('Computing heuristics for each sentence...')
+
     df[HEURISTICS] = df.apply(get_heuristics_scores, axis=1, result_type='expand')
+
+    print('Classifying the sentences according to each possible score, heuristic and threshold.')
 
     for score in ['mi_score', 'pmi_score']:
         for heuristic in HEURISTICS:
@@ -85,3 +95,5 @@ if __name__ == '__main__':
 
                 log_experiment(experiment_log_file_path, CONFIG_HEADER, experiment_settings, RESULTS_HEADER, experiment_results)
                 exp_index += 1
+
+    print(f'Done. Total time: {time.time()-start_time} seconds.')
