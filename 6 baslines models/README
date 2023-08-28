@@ -4,7 +4,7 @@ The experimenter.py script takes the path to the dataset created in part 2a and 
 Than, the script classify each sentence in the dataset based on three different heuristics:
 1. Entity Count: Count the number of entities in the sentence.
 If the count surpasses a certain threshold, the classification will be 1; otherwise, it will be 0. All possible thresholds are tested.
-2. Mask Distance: Measure the number of tokens between the two tokens containing the masked entities in the sentence.
+2. Mask Distance: Measure the number of tokens between the two tokens containing the MASK placeholder in the sentence.
 If this distance exceeds a certain threshold, the classification will be 1; otherwise, it will be 0. All possible thresholds are tested.
 3. Random Score: Assign a random value of 0 or 1 to each sentence. This score will serve as the sentence's classification.
 
