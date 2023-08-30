@@ -14,7 +14,7 @@ from common.util import *
 BERT_OUTPUT_SHAPE = 768
 
 CONFIG_HEADER = ['exp_index', 'score', 'hidden_layers_config', 'learning_rate', 'batch_size', 'num_epochs']
-RESULTS_HEADER = ['max_train_acc', 'max_train_acc_epoch', 'max_val_acc', 'max_val_acc_epoch', 'test_acc']
+RESULTS_HEADER = ['min_train_loss', 'min_train_loss_epoch', 'min_val_loss', 'min_val_loss_epoch', 'test_loss']
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -181,7 +181,7 @@ def run_experiment(df, score, hidden_layers_config, learning_rate, batch_size, n
 
     # test model
     print('Start testing...')
-    test_acc = test_model(model, test_dataloader, df, criterion, output_dir)
+    test_loss = test_model(model, test_dataloader, df, criterion, output_dir)
 
     total_time = time.time() - total_start_time
     print(f'Done. total time: {total_time} seconds.\n')
@@ -189,11 +189,11 @@ def run_experiment(df, score, hidden_layers_config, learning_rate, batch_size, n
     with open(f'{output_dir}\\total_time.txt', 'a') as file:
         file.write(f'Total time: {total_time} seconds.')
 
-    experiment_results = {'max_train_acc': train_results['avg_train_acc'].max(),
-                          'max_train_acc_epoch': train_results['avg_train_acc'].idxmax(),
-                          'max_val_acc': train_results['avg_val_acc'].max(),
-                          'max_val_acc_epoch': train_results['avg_val_acc'].idxmax(),
-                          'test_acc': test_acc}
+    experiment_results = {'min_train_loss': train_results['avg_train_loss'].min(),
+                          'min_train_loss_epoch': train_results['avg_train_loss'].idxmin(),
+                          'min_val_loss': train_results['avg_val_loss'].min(),
+                          'min_val_loss_epoch': train_results['avg_val_loss'].idxmin(),
+                          'test_loss': test_loss}
     return experiment_results
 
 if __name__ == '__main__':
