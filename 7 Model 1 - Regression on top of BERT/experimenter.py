@@ -9,7 +9,7 @@ from sklearn.metrics import classification_report, accuracy_score
 
 sys.path.append('..\\')
 from common.util import *
-from common.classifier_util import *
+from common.classifier_util import * # TODO remove me
 
 BERT_OUTPUT_SHAPE = 768
 
@@ -18,15 +18,15 @@ RESULTS_HEADER = ['max_train_acc', 'max_train_acc_epoch', 'max_val_acc', 'max_va
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-class BERT_Classifier(nn.Module):
+class BERT_Regressor(nn.Module):
 
     def __init__(self, input_dim, hidden_layers_config):
         '''
         :param input_dim: the input dimension of the network
         :param hidden_layers_config: indicates the hidden layers configuration of the network. Its format: [hidden_dim_1, hidden_dim_2, ...]
         '''
-        super(BERT_Classifier, self).__init__()
-        self.model = create_network(input_dim=input_dim, hidden_layers_config=hidden_layers_config, output_dim=2)
+        super(BERT_Regressor, self).__init__()
+        self.model = create_network(input_dim=input_dim, hidden_layers_config=hidden_layers_config, output_dim=1)
 
     def forward(self, x):
         return self.model(x)
@@ -36,7 +36,7 @@ class BERT_Classifier(nn.Module):
 def create_data_loader(X, y, batch_size, shuffle):
     sent_ids = torch.tensor(X.index, dtype=torch.int64).unsqueeze(dim=1).to(device)
     X_tensor = torch.tensor(X.values, dtype=torch.float32).to(device)
-    y_tensor = torch.tensor(y, dtype=torch.int64).to(device)
+    y_tensor = torch.tensor(y.values, dtype=torch.float32).unsqueeze(dim=1).to(device)
     dataset = TensorDataset(sent_ids, X_tensor, y_tensor)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
     return dataloader
@@ -52,33 +52,31 @@ def create_df(data_file, embs_file):
     df = pd.concat([embs, df], axis=1)
     return df
 
-def calc_measurements(model, dataloader, criterion):
-    total_loss = total_good = total = 0
+def calc_loss(model, dataloader, criterion):
+    total_loss = total = 0
     with torch.no_grad():
         for sent_ids, embeddings, targets in dataloader:
             outputs = model(embeddings)
             total_loss += criterion(outputs, targets).item()
-            predictions = logit_to_predicted_label(outputs)
-            total_good += (predictions == targets).sum().item()
             total += len(targets)
 
     avg_loss = total_loss / total
-    avg_acc = total_good / total
+    return avg_loss
 
-    return avg_loss, avg_acc
+def results_to_files(results_df, output_dir):
+    save_df_plot(df=results_df[['avg_train_loss', 'avg_val_loss']], title='mse', output_dir=output_dir)
+    results_df.to_csv(f'{output_dir}/train_logs.csv', index=True)
 
 def train_model(model, optimizer, num_epochs, train_dataloader, validation_dataloader, criterion, output_dir):
     print('Evaluating beginning state... ')
     model.eval()
 
-    avg_train_loss, avg_train_acc = calc_measurements(model, train_dataloader, criterion)
-    avg_val_loss, avg_val_acc = calc_measurements(model, validation_dataloader, criterion)
+    avg_train_loss = calc_loss(model, train_dataloader, criterion)
+    avg_val_loss = calc_loss(model, validation_dataloader, criterion)
 
     result_entry = {'epoch': 0,
                     'avg_train_loss': avg_train_loss,
                     'avg_val_loss': avg_val_loss,
-                    'avg_train_acc': avg_train_acc,
-                    'avg_val_acc': avg_val_acc,
                     'epoch_time': 0}
 
     results = [result_entry]
@@ -100,16 +98,14 @@ def train_model(model, optimizer, num_epochs, train_dataloader, validation_datal
         print('start evaluation ... ')
         model.eval()
 
-        avg_train_loss, avg_train_acc = calc_measurements(model, train_dataloader, criterion)
-        avg_val_loss, avg_val_acc = calc_measurements(model, validation_dataloader, criterion)
+        avg_train_loss = calc_loss(model, train_dataloader, criterion)
+        avg_val_loss = calc_loss(model, validation_dataloader, criterion)
 
         epoch_time = time.time() - start_time
 
         result_entry = {'epoch': epoch,
                         'avg_train_loss': avg_train_loss,
                         'avg_val_loss': avg_val_loss,
-                        'avg_train_acc': avg_train_acc,
-                        'avg_val_acc': avg_val_acc,
                         'epoch_time': epoch_time}
         results.append(result_entry)
         print('Epoch report:')
@@ -186,18 +182,17 @@ def run_experiment(df, score, hidden_layers_config, learning_rate, batch_size, n
 
     # Preparing the data
     X_train, X_tmp, y_train, y_tmp = train_test_split(df.iloc[:, :BERT_OUTPUT_SHAPE], df[score], random_state=42, test_size=0.4)
-    y_train, y_tmp = score_to_label(y_train, y_tmp)
-
     X_val, X_test, y_val, y_test = train_test_split(X_tmp, y_tmp, random_state=42, test_size=0.5)
+
     train_dataloader = create_data_loader(X_train, y_train, batch_size, shuffle=True)
     validation_dataloader = create_data_loader(X_val, y_val, batch_size, shuffle=False)
     test_dataloader = create_data_loader(X_test, y_test, batch_size, shuffle=False)
 
     # Preparing the model
-    model = BERT_Classifier(input_dim=BERT_OUTPUT_SHAPE, hidden_layers_config=hidden_layers_config)
+    model = BERT_Regressor(input_dim=BERT_OUTPUT_SHAPE, hidden_layers_config=hidden_layers_config)
     model.to(device)
 
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.MSELoss()
 
     # Preparing the optimizer
     optimizer = AdamW(model.parameters(), lr=learning_rate)
@@ -206,7 +201,7 @@ def run_experiment(df, score, hidden_layers_config, learning_rate, batch_size, n
     print('Start training...')
     train_results = train_model(model, optimizer, num_epochs, train_dataloader, validation_dataloader, criterion, output_dir)
 
-    # test model
+    # test model - TODO - continue adjusting from here
     print('Start testing...')
     test_acc = test_model(model, test_dataloader, df, criterion, output_dir)
 
