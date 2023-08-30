@@ -15,9 +15,9 @@ from common.classifier_util import *
 BERT_OUTPUT_SHAPE = 768
 
 CONFIG_HEADER = ['exp_index', 'score', 'labels_pred_hidden_layers_config', 'interest_pred_hidden_layers_config' ,'learning_rate', 'batch_size', 'num_epochs']
-RESULTS_HEADER = ['max_train_acc', 'max_train_acc_epoch', 'max_train_labels_acc', 'max_train_labels_acc_epoch',
-                  'max_val_acc', 'max_val_acc_epoch', 'max_val_labels_acc', 'max_val_labels_acc_epoch',
-                  'test_acc']
+RESULTS_HEADER = ['min_train_mse', 'min_train_mse_epoch', 'max_train_labels_acc', 'max_train_labels_acc_epoch',
+                  'min_val_mse', 'min_val_mse_epoch', 'max_val_labels_acc', 'max_val_labels_acc_epoch',
+                  'test_mse']
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -253,7 +253,7 @@ def run_experiment(df, score,
 
     # test model
     print('Start testing...')
-    test_acc = test_model(model, test_dataloader, df, interest_criterion, labels_criterion, le, output_dir) # TODO continue from here
+    test_mse = test_model(model, test_dataloader, df, interest_criterion, labels_criterion, le, output_dir) # TODO continue from here
 
     total_time = time.time() - total_start_time
     print(f'Done. total time: {total_time} seconds.\n')
@@ -261,15 +261,15 @@ def run_experiment(df, score,
     with open(f'{output_dir}\\total_time.txt', 'a') as file:
         file.write(f'Total time: {total_time} seconds.')
 
-    experiment_results = {'max_train_acc': train_results['avg_train_acc'].max(),
-                          'max_train_acc_epoch': train_results['avg_train_acc'].idxmax(),
+    experiment_results = {'min_train_mse': train_results['avg_train_regression_loss'].min(),
+                          'min_train_mse_epoch': train_results['avg_train_regression_loss'].idxmin(),
                           'max_train_labels_acc': train_results['avg_train_labels_acc'].max(),
                           'max_train_labels_acc_epoch': train_results['avg_train_labels_acc'].idxmax(),
-                          'max_val_acc': train_results['avg_val_acc'].max(),
-                          'max_val_acc_epoch': train_results['avg_val_acc'].idxmax(),
+                          'min_val_mse': train_results['avg_val_regression_loss'].min(),
+                          'min_val_mse_epoch': train_results['avg_val_regression_loss'].idxmin(),
                           'max_val_labels_acc': train_results['avg_val_labels_acc'].max(),
                           'max_val_labels_acc_epoch': train_results['avg_val_labels_acc'].idxmax(),
-                          'test_acc': test_acc}
+                          'test_mse': test_mse}
     return experiment_results
 
 if __name__ == '__main__':
