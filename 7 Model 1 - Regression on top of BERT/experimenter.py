@@ -14,7 +14,7 @@ from common.util import *
 BERT_OUTPUT_SHAPE = 768
 
 CONFIG_HEADER = ['exp_index', 'score', 'hidden_layers_config', 'learning_rate', 'batch_size', 'num_epochs']
-RESULTS_HEADER = ['min_train_loss', 'min_train_loss_epoch', 'min_val_loss', 'min_val_loss_epoch', 'test_loss']
+RESULTS_HEADER = ['min_train_mse', 'min_train_mse_epoch', 'min_val_mse', 'min_val_mse_epoch', 'test_mse']
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -189,11 +189,11 @@ def run_experiment(df, score, hidden_layers_config, learning_rate, batch_size, n
     with open(f'{output_dir}\\total_time.txt', 'a') as file:
         file.write(f'Total time: {total_time} seconds.')
 
-    experiment_results = {'min_train_loss': train_results['avg_train_loss'].min(),
-                          'min_train_loss_epoch': train_results['avg_train_loss'].idxmin(),
-                          'min_val_loss': train_results['avg_val_loss'].min(),
-                          'min_val_loss_epoch': train_results['avg_val_loss'].idxmin(),
-                          'test_loss': test_loss}
+    experiment_results = {'min_train_mse': train_results['avg_train_loss'].min(),
+                          'min_train_mse_epoch': train_results['avg_train_loss'].idxmin(),
+                          'min_val_mse': train_results['avg_val_loss'].min(),
+                          'min_val_mse_epoch': train_results['avg_val_loss'].idxmin(),
+                          'test_mse': test_loss}
     return experiment_results
 
 if __name__ == '__main__':
