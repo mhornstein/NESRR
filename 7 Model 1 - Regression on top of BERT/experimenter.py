@@ -5,11 +5,11 @@ import time
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning) # Disable the warning
 import sys
+import torch
 from sklearn.metrics import classification_report, accuracy_score
 
 sys.path.append('..\\')
 from common.util import *
-from common.classifier_util import * # TODO remove me
 
 BERT_OUTPUT_SHAPE = 768
 
@@ -117,62 +117,40 @@ def train_model(model, optimizer, num_epochs, train_dataloader, validation_datal
 
 def test_model(model, test_dataloader, df, criterion, output_dir):
     model.eval()
-    all_test_targets = []
-    all_test_predictions = []
 
-    out_df = pd.DataFrame(columns=['target_label', 'predicted_label', 'predicted_score', 'is_correct',
+    out_df = pd.DataFrame(columns=['target_score', 'predicted_score', 'abs_error',
                                    'ent1', 'label1', 'ent2', 'label2', 'masked_sent'])
     test_total_loss = 0
     with torch.no_grad():
         for batch_i, (test_sent_ids, test_embeddings, test_targets) in enumerate(test_dataloader, start=1):
             print(f'Testing batch: {batch_i}/{len(test_dataloader)}')
             test_outputs = model(test_embeddings)
-            test_total_loss += criterion(test_outputs, test_targets).item()
+            abs_error = torch.abs(test_targets - test_outputs)
+            loss = criterion(test_outputs, test_targets).item()
+            test_total_loss += loss
 
-            predicted_score = torch.sigmoid(test_outputs[:, 1])
+            sent_ids = test_sent_ids.squeeze().numpy()
 
-            test_predictions = logit_to_predicted_label(test_outputs)
-            is_correct = test_targets == test_predictions
+            batch_results = pd.DataFrame({'sent_ids': sent_ids,
+                                          'target_score': test_targets.squeeze().numpy(),
+                                          'predicted_score': test_outputs.squeeze().numpy(),
+                                          'abs_error': abs_error.squeeze().numpy()})
+            batch_results = batch_results.set_index('sent_ids', drop=True)
+            batch_results.index.name = None  # remove index column name
 
-            all_test_targets += test_targets.tolist()
-            all_test_predictions += test_predictions.tolist()
+            batch_data = df.loc[sent_ids]
+            batch_data = batch_data[['label1', 'label2', 'ent1', 'ent2', 'masked_sent']]
 
-            batch_df = create_batch_result_df(data_df=df, sent_ids=test_sent_ids, targets=test_targets,
-                                              predictions=test_predictions, predicted_score=predicted_score,
-                                              is_correct=is_correct)
+            batch_df = pd.concat([batch_results, batch_data], axis=1)
 
             out_df = pd.concat([out_df, batch_df], ignore_index=False)
 
-    test_size = len(all_test_targets)
-    avg_test_loss = test_total_loss / test_size
-
-    test_classification_report = classification_report(all_test_targets, all_test_predictions, zero_division=1)
-
     out_df.to_csv(f'{output_dir}\\test_predictions_results.csv', index=True)
 
-    with open(f'{output_dir}\\test_report.txt', 'w') as file:
-        file.write(f'Test average loss: {avg_test_loss}.\n')
-        file.write(f'Test classification report:\n')
-        file.write(test_classification_report)
+    test_size = len(out_df)
+    avg_test_loss = test_total_loss / test_size
 
-    accuracy = accuracy_score(all_test_targets, all_test_predictions)
-    return accuracy
-
-def create_batch_result_df(data_df, sent_ids, targets, predictions, predicted_score, is_correct):
-    batch_results = pd.DataFrame({'sent_ids': sent_ids.squeeze().numpy(),
-                                  'target_label': targets.squeeze().numpy(),
-                                  'predicted_label': predictions.squeeze().numpy(),
-                                  'predicted_score': predicted_score.squeeze().numpy(),
-                                  'is_correct': is_correct.squeeze().numpy()})
-    batch_results = batch_results.set_index('sent_ids', drop=True)
-    batch_results.index.name = None  # remove index column name
-
-    batch_data = data_df.loc[torch.squeeze(sent_ids)]
-    batch_data = batch_data[['label1', 'label2', 'ent1', 'ent2', 'masked_sent']]
-
-    batch_df = pd.concat([batch_results, batch_data], axis=1)
-
-    return batch_df
+    return avg_test_loss
 
 def run_experiment(df, score, hidden_layers_config, learning_rate, batch_size, num_epochs, output_dir):
     total_start_time = time.time()
@@ -201,7 +179,7 @@ def run_experiment(df, score, hidden_layers_config, learning_rate, batch_size, n
     print('Start training...')
     train_results = train_model(model, optimizer, num_epochs, train_dataloader, validation_dataloader, criterion, output_dir)
 
-    # test model - TODO - continue adjusting from here
+    # test model
     print('Start testing...')
     test_acc = test_model(model, test_dataloader, df, criterion, output_dir)
 
