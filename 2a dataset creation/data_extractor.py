@@ -366,7 +366,7 @@ if __name__ == '__main__':
     assert sum(sample_labels_count.values()) == 2 * N
     assert sum(sample_pairs_count.values()) == N
     assert sum(sample_pairs_labels_count.values()) == 2 * N
-    plot_stats(sample_entities_count, sample_labels_count, sample_pairs_count, sample_pairs_labels_count, output_dir='../3 EDA/sampled_sentences_stats')
+    plot_stats(sample_entities_count, sample_labels_count, sample_pairs_count, sample_pairs_labels_count, output_dir='sampled_sentences_stats')
 
     # Step 3: create the dataset according to the samples and the measurements taken
 
