@@ -168,28 +168,24 @@ def train_model(model, optimizer, num_epochs, train_dataloader, validation_datal
 
 def test_model(model, test_dataloader, df, interest_criterion, labels_criterion, le, output_dir):
     model.eval()
-    all_test_targets = []
-    all_test_predictions = []
 
-    out_df = pd.DataFrame(columns=['target_label', 'predicted_label', 'is_correct',
+    out_df = pd.DataFrame(columns=['target_score', 'predicted_score', 'abs_error',
                                    'label1_predictions', 'label2_predictions',
                                    'ent1', 'label1', 'ent2', 'label2', 'masked_sent'])
     with torch.no_grad():
         for batch_i, (sent_ids, test_embeddings, test_labels1, test_labels2, test_targets) in enumerate(test_dataloader, start=1):
             print(f'Testing batch: {batch_i}/{len(test_dataloader)}')
-            label1_classification_output, label2_classification_output, interest_classification_output = model(test_embeddings)
+            label1_classification_output, label2_classification_output, interest_output = model(test_embeddings)
 
-            test_predictions = logit_to_predicted_label(interest_classification_output)
             label1_predictions = logit_to_predicted_label(label1_classification_output)
             label2_predictions = logit_to_predicted_label(label2_classification_output)
 
-            all_test_targets += test_targets.tolist()
-            all_test_predictions += test_predictions.tolist()
+            abs_error = torch.abs(test_targets - interest_output)
 
             batch_results = pd.DataFrame({'sent_ids': sent_ids.squeeze().numpy(),
-                                          'target_label': test_targets.squeeze().numpy(),
-                                          'predicted_label': test_predictions.squeeze().numpy(),
-                                          'is_correct': (test_targets == test_predictions).squeeze().numpy(),
+                                          'target_score': test_targets.squeeze().numpy(),
+                                          'predicted_score': interest_output.squeeze().numpy(),
+                                          'abs_error': abs_error.squeeze().numpy(),
                                           'label1_predictions': label1_predictions.squeeze(),
                                           'label2_predictions': label2_predictions.squeeze()})
             batch_results = batch_results.set_index('sent_ids', drop=True)
@@ -205,20 +201,16 @@ def test_model(model, test_dataloader, df, interest_criterion, labels_criterion,
 
             out_df = pd.concat([out_df, batch_df], ignore_index=False)
 
-    avg_test_loss, avg_test_labels_acc, avg_test_interest_acc = calc_measurements(model, test_dataloader, interest_criterion, labels_criterion)
-
-    test_classification_report = classification_report(all_test_targets, all_test_predictions, zero_division=1)
+    avg_test_loss, avg_test_labels_acc, avg_test_interest_loss = calc_measurements(model, test_dataloader, interest_criterion, labels_criterion)
 
     out_df.to_csv(f'{output_dir}\\test_predictions_results.csv', index=True)
 
     with open(f'{output_dir}\\test_report.txt', 'w') as file:
-        file.write(f'Test average loss: {avg_test_loss}.\n')
+        file.write(f'Test average model loss: {avg_test_loss}.\n')
         file.write(f'Test labels prediction accuracy: {avg_test_labels_acc}.\n')
-        file.write(f'Test classification report:\n')
-        file.write(test_classification_report)
+        file.write(f'Test mse: {avg_test_interest_loss}\n')
 
-    accuracy = accuracy_score(all_test_targets, all_test_predictions)
-    return accuracy
+    return avg_test_interest_loss
 
 def run_experiment(df, score,
                    labels_pred_hidden_layers_config, interest_pred_hidden_layers_config,
@@ -261,7 +253,7 @@ def run_experiment(df, score,
 
     # test model
     print('Start testing...')
-    test_acc = test_model(model, test_dataloader, df, interest_criterion, labels_criterion, le, output_dir)
+    test_acc = test_model(model, test_dataloader, df, interest_criterion, labels_criterion, le, output_dir) # TODO continue from here
 
     total_time = time.time() - total_start_time
     print(f'Done. total time: {total_time} seconds.\n')
