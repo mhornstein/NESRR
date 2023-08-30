@@ -22,17 +22,17 @@ RESULTS_HEADER = ['max_train_acc', 'max_train_acc_epoch', 'max_train_labels_acc'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-class BERT_Classifier(nn.Module):
+class BERT_Regressor(nn.Module):
 
     def __init__(self, input_dim, labels_pred_hidden_layers_config, interest_pred_hidden_layers_config, num_labels):
-        super(BERT_Classifier, self).__init__()
+        super(BERT_Regressor, self).__init__()
         self.num_labels = num_labels
         self.labels_network = create_network(input_dim=input_dim,
                                              hidden_layers_config=labels_pred_hidden_layers_config,
                                              output_dim=num_labels * 2)
         self.interest_network = create_network(input_dim=num_labels * 2 + input_dim,
                                              hidden_layers_config=interest_pred_hidden_layers_config,
-                                             output_dim=2)
+                                             output_dim=1)
 
     def forward(self, embs):
         # Step 1: classify the labels
@@ -55,7 +55,7 @@ def create_data_loader(X, y, batch_size, shuffle):
     embs_tensor = torch.tensor(X.iloc[:, :BERT_OUTPUT_SHAPE].values, dtype=torch.float32).to(device)
     label1_tensor = torch.tensor(X['label1'].values, dtype=torch.long).to(device) # Note that target class must be of type torch.long
     label2_tensor = torch.tensor(X['label2'].values, dtype=torch.long).to(device)
-    y_tensor = torch.tensor(y, dtype=torch.int64).to(device)
+    y_tensor = torch.tensor(y.values, dtype=torch.float32).unsqueeze(dim=1).to(device)
     dataset = TensorDataset(ids_tensor, embs_tensor, label1_tensor, label2_tensor, y_tensor)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
     return dataloader
@@ -72,18 +72,17 @@ def create_df(data_file, embs_file):
     return df
 
 def calc_measurements(model, dataloader, interest_criterion, labels_criterion):
-    total_loss = interest_total_good = labels_total_good = total = 0
+    total_loss = interest_total_loss = labels_total_good = total = 0
     with torch.no_grad():
         for sent_ids, embeddings, labels1, labels2, targets in dataloader:
-            label1_classification_output, label2_classification_output, interest_classification_output = model(embeddings)
+            label1_classification_output, label2_classification_output, interest_output = model(embeddings)
             label1_loss = labels_criterion(label1_classification_output, labels1)
             label2_loss = labels_criterion(label2_classification_output, labels2)
-            interest_loss = interest_criterion(interest_classification_output, targets)
+            interest_loss = interest_criterion(interest_output, targets)
             loss = label1_loss + label2_loss + interest_loss
             total_loss += loss.item()
 
-            predictions = logit_to_predicted_label(interest_classification_output)
-            interest_total_good += (predictions == targets).sum().item()
+            interest_total_loss += interest_loss.item()
 
             predictions = logit_to_predicted_label(label1_classification_output)
             labels_total_good += (predictions == labels1).sum().item()
@@ -94,25 +93,33 @@ def calc_measurements(model, dataloader, interest_criterion, labels_criterion):
             total += len(targets)
 
     avg_loss = total_loss / total
-    avg_interest_acc = interest_total_good / total
+    avg_interest_loss = interest_total_loss / total
     avg_labels_acc = labels_total_good / (2 * total)
 
-    return avg_loss, avg_labels_acc, avg_interest_acc
+    return avg_loss, avg_labels_acc, avg_interest_loss
+
+def results_to_files(results_df, output_dir):
+    save_df_plot(df=results_df[['avg_train_model_loss', 'avg_val_model_loss']], title='model loss', output_dir=output_dir)
+    save_df_plot(df=results_df[['avg_train_regression_loss', 'avg_val_regression_loss']], title='mse', output_dir=output_dir)
+    save_df_plot(df=results_df[['avg_train_labels_acc', 'avg_val_labels_acc']], title='labels-accuracy', output_dir=output_dir)
+    save_df_plot(df=results_df[['epoch_time']], title='epochs-time', output_dir=output_dir)
+
+    results_df.to_csv(f'{output_dir}/train_logs.csv', index=True)
 
 def train_model(model, optimizer, num_epochs, train_dataloader, validation_dataloader, interest_criterion, labels_criterion, output_dir):
     print('Evaluating beginning state... ')
     model.eval()
 
-    avg_train_loss, avg_train_labels_acc, avg_train_interest_acc = calc_measurements(model, train_dataloader, interest_criterion, labels_criterion)
-    avg_val_loss, avg_val_labels_acc, avg_val_interest_acc = calc_measurements(model, validation_dataloader, interest_criterion, labels_criterion)
+    avg_train_loss, avg_train_labels_acc, avg_train_interest_loss = calc_measurements(model, train_dataloader, interest_criterion, labels_criterion)
+    avg_val_loss, avg_val_labels_acc, avg_val_interest_loss = calc_measurements(model, validation_dataloader, interest_criterion, labels_criterion)
 
     result_entry = {'epoch': 0,
-                    'avg_train_loss': avg_train_loss,
-                    'avg_val_loss': avg_val_loss,
+                    'avg_train_model_loss': avg_train_loss,
+                    'avg_val_model_loss': avg_val_loss,
                     'avg_train_labels_acc': avg_train_labels_acc,
                     'avg_val_labels_acc': avg_val_labels_acc,
-                    'avg_train_acc': avg_train_interest_acc,
-                    'avg_val_acc': avg_val_interest_acc,
+                    'avg_train_regression_loss': avg_train_interest_loss,
+                    'avg_val_regression_loss': avg_val_interest_loss,
                     'epoch_time': 0}
 
     results = [result_entry]
@@ -124,11 +131,11 @@ def train_model(model, optimizer, num_epochs, train_dataloader, validation_datal
         model.train()
         for batch_i, (sent_ids, embeddings, labels1, labels2, targets) in enumerate(train_dataloader, start=1):
             print(f'Training batch: {batch_i}/{len(train_dataloader)}')
-            label1_classification_output, label2_classification_output, interest_classification_output = model(embeddings)
+            label1_classification_output, label2_classification_output, interest_output = model(embeddings)
 
             label1_loss = labels_criterion(label1_classification_output, labels1)
             label2_loss = labels_criterion(label2_classification_output, labels2)
-            interest_loss = interest_criterion(interest_classification_output, targets)
+            interest_loss = interest_criterion(interest_output, targets)
             loss = label1_loss + label2_loss + interest_loss
 
             optimizer.zero_grad()
@@ -138,18 +145,18 @@ def train_model(model, optimizer, num_epochs, train_dataloader, validation_datal
         print('start evaluation ... ')
         model.eval()
 
-        avg_train_loss, avg_train_labels_acc, avg_train_interest_acc = calc_measurements(model, train_dataloader, interest_criterion, labels_criterion)
-        avg_val_loss, avg_val_labels_acc, avg_val_interest_acc = calc_measurements(model, validation_dataloader, interest_criterion, labels_criterion)
+        avg_train_loss, avg_train_labels_acc, avg_train_interest_loss = calc_measurements(model, train_dataloader, interest_criterion, labels_criterion)
+        avg_val_loss, avg_val_labels_acc, avg_val_interest_loss = calc_measurements(model, validation_dataloader, interest_criterion, labels_criterion)
 
         epoch_time = time.time() - start_time
 
         result_entry = {'epoch': epoch,
-                        'avg_train_loss': avg_train_loss,
-                        'avg_val_loss': avg_val_loss,
+                        'avg_train_model_loss': avg_train_loss,
+                        'avg_val_model_loss': avg_val_loss,
                         'avg_train_labels_acc': avg_train_labels_acc,
                         'avg_val_labels_acc': avg_val_labels_acc,
-                        'avg_train_acc': avg_train_interest_acc,
-                        'avg_val_acc': avg_val_interest_acc,
+                        'avg_train_regression_loss': avg_train_interest_loss,
+                        'avg_val_regression_loss': avg_val_interest_loss,
                         'epoch_time': epoch_time}
         results.append(result_entry)
         print('Epoch report:')
@@ -225,21 +232,19 @@ def run_experiment(df, score,
     # Preparing the data
     data_columns = list(df.columns[0:BERT_OUTPUT_SHAPE]) + ['label1', 'label2']
     X_train, X_tmp, y_train, y_tmp = train_test_split(df.loc[:, data_columns], df[score], random_state=42, test_size=0.4)
-    y_train, y_tmp = score_to_label(y_train, y_tmp)
-
     X_val, X_test, y_val, y_test = train_test_split(X_tmp, y_tmp, random_state=42, test_size=0.5)
     train_dataloader = create_data_loader(X_train, y_train, batch_size, shuffle=True)
     validation_dataloader = create_data_loader(X_val, y_val, batch_size, shuffle=False)
     test_dataloader = create_data_loader(X_test, y_test, batch_size, shuffle=False)
 
     # Preparing the model
-    model = BERT_Classifier(input_dim=BERT_OUTPUT_SHAPE,
+    model = BERT_Regressor(input_dim=BERT_OUTPUT_SHAPE,
                             labels_pred_hidden_layers_config=labels_pred_hidden_layers_config,
                             interest_pred_hidden_layers_config=interest_pred_hidden_layers_config,
                             num_labels=len(le.classes_))
     model.to(device)
 
-    interest_criterion = nn.CrossEntropyLoss()
+    interest_criterion = nn.MSELoss()
 
     # Preparing the loss: due to data imbalance, we will use weighted loss function instead of the out-of-the-box BERT's.
     # reference: https://discuss.huggingface.co/t/class-weights-for-bertforsequenceclassification/1674/6
