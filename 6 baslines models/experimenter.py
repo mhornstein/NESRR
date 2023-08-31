@@ -3,6 +3,7 @@ from sklearn.model_selection import train_test_split
 from common.util import *
 from common.classifier_util import *
 from sklearn.metrics import accuracy_score, classification_report
+from sklearn.preprocessing import MinMaxScaler
 import spacy
 import time
 
@@ -56,6 +57,8 @@ if __name__ == '__main__':
 
     print('Classifying the sentences according to each possible score, heuristic and threshold.')
 
+    scaler = MinMaxScaler()
+
     for score in ['mi_score', 'pmi_score']:
         for heuristic in HEURISTICS:
             X_train, X_tmp, y_train, y_tmp = train_test_split(df[heuristic], df[score], random_state=42, test_size=0.4)
@@ -94,7 +97,8 @@ if __name__ == '__main__':
                     out_df = pd.DataFrame({'sent_ids': sent_ids,
                                           'target_label': y_test,
                                           'predicted_label': test_predictions,
-                                          'predicted_score': X_test})
+                                          'predicted_score': X_test,
+                                          'scaled_predicted_score': scaler.fit_transform(X_test.values.reshape(-1, 1)).flatten()})
                     out_df = out_df.set_index('sent_ids', drop=True)
                     out_df.index.name = None  # remove index column name
 
