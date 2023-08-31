@@ -1,6 +1,7 @@
 The experimenter.py Script
 ==========================
-The experimenter.py script takes the path to the dataset created in part 2a and a path to an output directory as inputs.
+The experimenter.py script takes the path to the dataset created in part 2a and a path to an output directory as inputs, 
+as well as a flag indicating whether to output the content of the test set predictions.
 Than, the script classify each sentence in the dataset based on three different heuristics:
 1. Entity Count: Count the number of entities in the sentence.
 If the count surpasses a certain threshold, the classification will be 1; otherwise, it will be 0. All possible thresholds are tested.
@@ -10,16 +11,20 @@ If this distance exceeds a certain threshold, the classification will be 1; othe
 
 How to run the script?
 ======================
-In the command prompt, type: python experimenter.py <path to dataset> <name of result directory>
+In the command prompt, type: python experimenter.py <path to dataset> <flag - True\Flase indicating whether to output test predictions> <name of result directory>
 
 for example:
-python experimenter.py ../data/data.csv results
+python experimenter.py ../data/data.csv True results
+python experimenter.py ../data/data.csv False results
 or:
-python experimenter.py ../data/dummy/dummy_data.csv results
+python experimenter.py ../data/dummy/dummy_data.csv True results
+python experimenter.py ../data/dummy/dummy_data.csv False results
 
 Script output
 =============
 Progress will be shown on the console.
 The result directory will be generated, and inside it, one will find the following:
 1. `experiments_logs.csv`: stores each experiment's ID, its configuration, and some results, such as accuracy scores.
-2. Directories numbered 1, 2, ... corresponding to the experiment_id. Each directory will contain a classification report containing all classification metrics.
+2. Directories numbered 1, 2, ... corresponding to the experiment_id. Each directory will contain the following files:
+- `test_report.txt`: a text file providing the classification report of the test-set (containing measurements such as recall, precision, F1 etc).
+- `test_predictions_results.csv`: if the flag was set to True, the directory will also intlude this CSV file containing the model's results when applied to the test set. This file includes both the classifications and the corresponding sentences and labels to assist in the evaluation.
