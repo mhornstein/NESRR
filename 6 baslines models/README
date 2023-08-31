@@ -27,4 +27,4 @@ The result directory will be generated, and inside it, one will find the followi
 1. `experiments_logs.csv`: stores each experiment's ID, its configuration, and some results, such as accuracy scores.
 2. Directories numbered 1, 2, ... corresponding to the experiment_id. Each directory will contain the following files:
 - `test_report.txt`: a text file providing the classification report of the test-set (containing measurements such as recall, precision, F1 etc).
-- `test_predictions_results.csv`: if the flag was set to True, the directory will also intlude this CSV file containing the model's results when applied to the test set. This file includes both the classifications and the corresponding sentences and labels to assist in the evaluation.
+- `test_predictions_results.csv`: if the flag was set to True, the directory will also include this CSV file containing the model's results when applied to the test set. This file includes both the classifications and the corresponding sentences and labels to assist in the evaluation.
