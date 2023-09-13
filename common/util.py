@@ -10,12 +10,13 @@ def draw_hidden_layers_config():
     hidden_layers_config = random.sample(NETWORK_SIZES, random.randint(2, 4))
     return hidden_layers_config
 
-def create_network(input_dim, hidden_layers_config, output_dim):
+def create_network(input_dim, hidden_layers_config, output_dim, include_sigmoid=False):
     '''
     Creates a deep model according to the given configuration
     :param input_dim: the input dimension of the network
     :param hidden_layers_config: indicates the hidden layers configuration of the network. Its format: [hidden_dim_1, hidden_dim_2, ...]
     :param output_dim: the output dimension of the network
+    :param include_sigmoid: include sigmoid activation function at the network's final layer
     :return: the created model
     '''
     layers = []
@@ -25,6 +26,8 @@ def create_network(input_dim, hidden_layers_config, output_dim):
         layers.append(nn.ReLU())
         prev_dim = dim
     layers.append(nn.Linear(prev_dim, output_dim))
+    if include_sigmoid == True:
+        layers.append(nn.Sigmoid())
     model = nn.Sequential(*layers)
     return model
 
