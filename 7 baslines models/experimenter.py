@@ -1,13 +1,13 @@
 import sys
 from sklearn.model_selection import train_test_split
-from common.util import *
-from common.classifier_util import *
 from sklearn.metrics import accuracy_score, classification_report
 from sklearn.preprocessing import MinMaxScaler
 import spacy
 import time
 
 sys.path.append('..\\')
+from common.util import *
+from common.classifier_util import *
 
 nlp = spacy.load("en_core_web_lg", disable=["tok2vec", "tagger", "parser", "attribute_ruler", "lemmatizer"])
 MASK_LABEL = '[MASK]'
