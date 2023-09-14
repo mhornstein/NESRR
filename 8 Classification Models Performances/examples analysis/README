@@ -1,0 +1,6 @@
+This experimenter.py script is similar to "Part 5 Model 1 - Classification on top of BERT",
+with the modification to generate a probability score for a classification of 1 (indicating a meaningful relation between the entities in the sentence).
+This involved changing the loss function from multi-class classification to binary classification.
+
+Therefore, the instructions for running this script are the same as those in Part 5.
+Please refer to the README file in Part 5 for further information.
