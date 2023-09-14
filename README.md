@@ -6,7 +6,8 @@ The hypothesis suggests that when MI/PMI scores are high, one can learn about in
 
 This work's focus is on infrastructure and is intended to construct the necessary framework for training and evaluating the described model, to produce initial results, and to facilitate further research.
 
-Each of the 10 work parts is supported by corresponding scripts, which can be found within this Git repository. Additionally, you can access all the generated outputs in the [project's storage drive](https://drive.google.com/drive/u/4/folders/1v3YdVXgeByow9xkSgPJom6rx2KxB9QSu).
+Each of the 11 work parts is supported by corresponding scripts, which can be found within this Git repository. Additionally, you can access all the generated outputs in the [project's storage drive](https://drive.google.com/drive/u/4/folders/1v3YdVXgeByow9xkSgPJom6rx2KxB9QSu). 
+Instructions on how to execute each script can be found in the respective README files of the scripts.
 
 For comprehensive details, references, and guidance, please use the [report pdf](https://github.com/mhornstein/NESRR/blob/main/report.pdf).
 
